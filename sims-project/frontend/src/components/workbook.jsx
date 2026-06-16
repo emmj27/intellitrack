@@ -1,15 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './workbook.css';
 
-const PHASES = ['Initiation', '[P1] Prerequisites', '[P2] AP', '[P3] AR', '[P4] Inventory', '[P5] Peripherals'];
+const DEFAULT_PHASES = ['Initiation', '[P1] Prerequisites', '[P2] AP', '[P3] AR', '[P4] Inventory', '[P5] Peripherals'];
 const OWNERS = ['PM', 'UI UX', 'Team', 'KC, Jess', 'Jess, KC, Franco', 'Mayon', 'Rica, QA 2'];
 const STATUSES = ['Not Started', 'In Progress', 'Complete'];
 
-function Workbook({ tasks, fetchTasks }) {
+function Workbook({ tasks, selectedProject, fetchTasks }) {
   const [isAdding, setIsAdding] = useState(false);
+  const [isAddingPhase, setIsAddingPhase] = useState(false);
+  const [newPhaseName, setNewPhaseName] = useState('');
+  const [phases, setPhases] = useState(DEFAULT_PHASES);
   const [editingTask, setEditingTask] = useState(null);
+  const [lastPhase, setLastPhase] = useState(DEFAULT_PHASES[0]);
   const [formData, setFormData] = useState({
-    phase: PHASES[0],
+    project_id: selectedProject ? selectedProject.id : null,
+    phase: DEFAULT_PHASES[0],
     task_id: '',
     task_name: '',
     start_date: '',
@@ -22,6 +27,22 @@ function Workbook({ tasks, fetchTasks }) {
     notes: ''
   });
 
+  // Update lastPhase kapag may bagong task na na-add
+  useEffect(() => {
+    if (tasks.length > 0) {
+      const lastTask = tasks[tasks.length - 1];
+      setLastPhase(lastTask.phase);
+      setFormData(prev => ({ ...prev, phase: lastTask.phase }));
+    }
+  }, [tasks]);
+
+  // Update project_id when selected project changes
+  useEffect(() => {
+    if (selectedProject) {
+      setFormData(prev => ({ ...prev, project_id: selectedProject.id }));
+    }
+  }, [selectedProject]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -29,7 +50,8 @@ function Workbook({ tasks, fetchTasks }) {
 
   const resetForm = () => {
     setFormData({
-      phase: PHASES[0],
+      project_id: selectedProject ? selectedProject.id : null,
+      phase: lastPhase,
       task_id: '',
       task_name: '',
       start_date: '',
@@ -45,8 +67,25 @@ function Workbook({ tasks, fetchTasks }) {
     setEditingTask(null);
   };
 
+  // Handle new phase creation
+  const handleAddPhase = () => {
+    if (newPhaseName.trim() && !phases.includes(newPhaseName.trim())) {
+      const updatedPhases = [...phases, newPhaseName.trim()];
+      setPhases(updatedPhases);
+      setLastPhase(newPhaseName.trim());
+      setFormData(prev => ({ ...prev, phase: newPhaseName.trim() }));
+      setNewPhaseName('');
+      setIsAddingPhase(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    const taskData = {
+      ...formData,
+      project_id: selectedProject ? selectedProject.id : null
+    };
     
     const url = editingTask 
       ? `http://localhost:5000/api/tasks/${editingTask.id}`
@@ -55,13 +94,16 @@ function Workbook({ tasks, fetchTasks }) {
     const method = editingTask ? 'PUT' : 'POST';
     
     try {
-      await fetch(url, {
+      const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(taskData)
       });
-      fetchTasks();
-      resetForm();
+      
+      if (response.ok) {
+        await fetchTasks();
+        resetForm();
+      }
     } catch (error) {
       console.error('Error saving task:', error);
     }
@@ -70,8 +112,10 @@ function Workbook({ tasks, fetchTasks }) {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this task?')) {
       try {
-        await fetch(`http://localhost:5000/api/tasks/${id}`, { method: 'DELETE' });
-        fetchTasks();
+        const response = await fetch(`http://localhost:5000/api/tasks/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+          await fetchTasks();
+        }
       } catch (error) {
         console.error('Error deleting task:', error);
       }
@@ -81,6 +125,7 @@ function Workbook({ tasks, fetchTasks }) {
   const handleEdit = (task) => {
     setEditingTask(task);
     setFormData({
+      project_id: selectedProject ? selectedProject.id : null,
       phase: task.phase,
       task_id: task.task_id,
       task_name: task.task_name,
@@ -96,21 +141,73 @@ function Workbook({ tasks, fetchTasks }) {
     setIsAdding(true);
   };
 
+  // Sort tasks by ID para nasa baba ang bagong task
+  const sortedTasks = [...tasks].sort((a, b) => a.id - b.id);
+
+  if (!selectedProject) {
+    return (
+      <div className="workbook">
+        <div className="no-project-message">
+          <h2>No Project Selected</h2>
+          <p>Please select or create a project from the <strong>Projects</strong> tab.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="workbook">
       <div className="workbook-header">
-        <h2>Task Workbook</h2>
-        <button 
-          className="btn-add"
-          onClick={() => {
-            resetForm();
-            setIsAdding(true);
-          }}
-        >
-          + Add New Task
-        </button>
+        <div>
+          <h2>Task Workbook</h2>
+          <p className="project-context">📁 {selectedProject.name}</p>
+        </div>
+        <div className="header-buttons">
+          <button 
+            className="btn-add-phase"
+            onClick={() => setIsAddingPhase(true)}
+          >
+            + New Phase
+          </button>
+          <button 
+            className="btn-add"
+            onClick={() => {
+              resetForm();
+              setIsAdding(true);
+            }}
+          >
+            + Add New Task
+          </button>
+        </div>
       </div>
 
+      {/* New Phase Modal */}
+      {isAddingPhase && (
+        <div className="modal-overlay">
+          <div className="modal small-modal">
+            <h3>Create New Phase</h3>
+            <div className="form-group">
+              <label>Phase Name</label>
+              <input 
+                type="text" 
+                value={newPhaseName} 
+                onChange={(e) => setNewPhaseName(e.target.value)}
+                placeholder="e.g., [P6] Deployment"
+                autoFocus
+              />
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn-cancel" onClick={() => {
+                setIsAddingPhase(false);
+                setNewPhaseName('');
+              }}>Cancel</button>
+              <button type="button" className="btn-save" onClick={handleAddPhase}>Create Phase</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Task Modal */}
       {isAdding && (
         <div className="modal-overlay">
           <div className="modal">
@@ -120,7 +217,7 @@ function Workbook({ tasks, fetchTasks }) {
                 <div className="form-group">
                   <label>Phase *</label>
                   <select name="phase" value={formData.phase} onChange={handleInputChange} required>
-                    {PHASES.map(p => <option key={p} value={p}>{p}</option>)}
+                    {phases.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
                 <div className="form-group">
@@ -177,47 +274,56 @@ function Workbook({ tasks, fetchTasks }) {
         </div>
       )}
 
-      <div className="tasks-table-container">
-        <table className="tasks-table">
-          <thead>
-            <tr>
-              <th>Phase</th>
-              <th>Task ID</th>
-              <th>Task Name</th>
-              <th>Start Date</th>
-              <th>End Date</th>
-              <th>Duration</th>
-              <th>Owner</th>
-              <th>% Complete</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tasks.map((task) => (
-              <tr key={task.id}>
-                <td>{task.phase}</td>
-                <td>{task.task_id}</td>
-                <td>{task.task_name}</td>
-                <td>{new Date(task.start_date).toLocaleDateString()}</td>
-                <td>{new Date(task.end_date).toLocaleDateString()}</td>
-                <td>{task.duration}</td>
-                <td>{task.owner}</td>
-                <td>{task.percent_complete}%</td>
-                <td>
-                  <span className={`status-badge status-${task.status.toLowerCase().replace(' ', '-')}`}>
-                    {task.status}
-                  </span>
-                </td>
-                <td className="actions">
-                  <button className="btn-edit" onClick={() => handleEdit(task)}>Edit</button>
-                  <button className="btn-delete" onClick={() => handleDelete(task.id)}>Delete</button>
-                </td>
+      {tasks.length === 0 ? (
+        <div className="no-tasks-message">
+          <p>No tasks yet for this project.</p>
+          <p>Click <strong>"+ Add New Task"</strong> to get started!</p>
+        </div>
+      ) : (
+        <div className="tasks-table-container">
+          <table className="tasks-table">
+            <thead>
+              <tr>
+                <th>Phase</th>
+                <th>Task ID</th>
+                <th>Task Name</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Predecessors</th>
+                <th>Duration</th>
+                <th>Owner</th>
+                <th>% Complete</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {sortedTasks.map((task) => (
+                <tr key={task.id}>
+                  <td>{task.phase}</td>
+                  <td>{task.task_id}</td>
+                  <td>{task.task_name}</td>
+                  <td>{new Date(task.start_date).toLocaleDateString()}</td>
+                  <td>{new Date(task.end_date).toLocaleDateString()}</td>
+                  <td>{task.predecessors || '—'}</td>
+                  <td>{task.duration}</td>
+                  <td>{task.owner}</td>
+                  <td>{task.percent_complete}%</td>
+                  <td>
+                    <span className={`status-badge status-${task.status.toLowerCase().replace(' ', '-')}`}>
+                      {task.status}
+                    </span>
+                  </td>
+                  <td className="actions">
+                    <button className="btn-edit" onClick={() => handleEdit(task)}>Edit</button>
+                    <button className="btn-delete" onClick={() => handleDelete(task.id)}>Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

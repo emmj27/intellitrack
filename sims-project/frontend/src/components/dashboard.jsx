@@ -1,146 +1,124 @@
 import React, { useState, useEffect } from 'react';
 import './dashboard.css';
 
-function Dashboard({ tasks }) {
+function Dashboard({ tasks, selectedProject }) {
   const [metrics, setMetrics] = useState(null);
   const [phases, setPhases] = useState([]);
 
   useEffect(() => {
-    fetchMetrics();
-    fetchPhases();
+    if (tasks.length > 0) {
+      calculateMetrics();
+      calculatePhases();
+    }
   }, [tasks]);
 
-  const fetchMetrics = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/dashboard/metrics');
-      const data = await response.json();
-      setMetrics(data);
-    } catch (error) {
-      console.error('Error fetching metrics:', error);
+  const calculateMetrics = () => {
+    const totalTasks = tasks.length;
+    const completeTasks = tasks.filter(t => t.status === 'Complete').length;
+    const inProgressTasks = tasks.filter(t => t.status === 'In Progress').length;
+    const notStartedTasks = tasks.filter(t => t.status === 'Not Started').length;
+    
+    const avgPercentComplete = totalTasks > 0 
+      ? Math.round((completeTasks / totalTasks) * 100) 
+      : 0;
+    
+    const totalPercentComplete = tasks.reduce((sum, t) => sum + t.percent_complete, 0);
+    const completionRate = totalTasks > 0 
+      ? Math.round(totalPercentComplete / totalTasks) 
+      : 0;
+    
+    const startDates = tasks.map(t => new Date(t.start_date));
+    const endDates = tasks.map(t => new Date(t.end_date));
+    const projectStart = new Date(Math.min(...startDates));
+    const projectEnd = new Date(Math.max(...endDates));
+    
+    const today = new Date();
+    const totalElapsedDays = Math.floor((today - projectStart) / (1000 * 60 * 60 * 24));
+    
+    let workingDaysElapsed = 0;
+    const currentDate = new Date(projectStart);
+    while (currentDate <= today) {
+      const dayOfWeek = currentDate.getDay();
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        workingDaysElapsed++;
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
     }
+    
+    const approxHoursRendered = workingDaysElapsed * 8;
+    
+    const totalDuration = Math.floor((projectEnd - projectStart) / (1000 * 60 * 60 * 24));
+    const plannedCompletion = totalDuration > 0 ? (totalElapsedDays / totalDuration) * 100 : 0;
+    
+    let scheduleStatus = 'On Track';
+    if (avgPercentComplete > plannedCompletion + 10) scheduleStatus = 'Ahead';
+    else if (avgPercentComplete < plannedCompletion - 10) scheduleStatus = 'At Risk';
+    else if (avgPercentComplete < plannedCompletion - 25) scheduleStatus = 'Behind';
+    
+    setMetrics({
+      projectTitle: selectedProject ? selectedProject.name : 'SIMS PROJECT DASHBOARD',
+      subDescription: selectedProject?.description || 'Smart Inventory Management System | Live Project Tracker',
+      projectStart: projectStart.toLocaleDateString(),
+      projectEnd: projectEnd.toLocaleDateString(),
+      scheduleStatus,
+      totalElapsedDays: Math.max(0, totalElapsedDays),
+      workingDaysElapsed,
+      approxHoursRendered,
+      totalTasks,
+      completeTasks,
+      inProgressTasks,
+      notStartedTasks,
+      overallCompletionRate: avgPercentComplete,
+      completionRate: completionRate,
+      overdueTasks: tasks.filter(t => new Date(t.end_date) < today && t.status !== 'Complete').length
+    });
   };
 
-  const fetchPhases = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/phases');
-      const data = await response.json();
-      setPhases(data);
-    } catch (error) {
-      console.error('Error fetching phases:', error);
-    }
+  const calculatePhases = () => {
+    const phaseMap = {};
+    
+    tasks.forEach(task => {
+      if (!phaseMap[task.phase]) {
+        phaseMap[task.phase] = {
+          phase: task.phase,
+          total_tasks: 0,
+          complete_count: 0,
+          in_progress_count: 0,
+          not_started_count: 0,
+          total_percent: 0,
+          phase_start: task.start_date,
+          phase_end: task.end_date
+        };
+      }
+      
+      const p = phaseMap[task.phase];
+      p.total_tasks++;
+      p.total_percent += task.percent_complete;
+      
+      if (task.status === 'Complete') p.complete_count++;
+      else if (task.status === 'In Progress') p.in_progress_count++;
+      else if (task.status === 'Not Started') p.not_started_count++;
+      
+      if (new Date(task.start_date) < new Date(p.phase_start)) p.phase_start = task.start_date;
+      if (new Date(task.end_date) > new Date(p.phase_end)) p.phase_end = task.end_date;
+    });
+    
+    const phasesArray = Object.values(phaseMap).map(p => ({
+      ...p,
+      avg_percent_complete: p.total_tasks > 0 
+        ? Math.round((p.complete_count / p.total_tasks) * 100) 
+        : 0,
+      completion_rate: Math.round(p.total_percent / p.total_tasks)
+    }));
+    
+    setPhases(phasesArray);
   };
 
   if (!metrics) return <div className="loading">Loading dashboard...</div>;
 
   return (
     <div className="dashboard">
-      <div className="dashboard-header">
-        <div>
-          <h1>{metrics.projectTitle}</h1>
-          <p>{metrics.subDescription}</p>
-        </div>
-        <div className="date-started">
-          Started: {metrics.projectStart}
-        </div>
-      </div>
-
-      <div className="hero-section">
-        <div className="card">
-          <h3>TIMELINE & SCHEDULE</h3>
-          <div className="timeline-grid">
-            <div className="timeline-item">
-              <span className="label">Project Start</span>
-              <span className="value">{metrics.projectStart}</span>
-            </div>
-            <div className="timeline-item">
-              <span className="label">Project End</span>
-              <span className="value">{metrics.projectEnd}</span>
-            </div>
-            <div className="timeline-item">
-              <span className="label">Schedule Status</span>
-              <span className={`value status-${metrics.scheduleStatus.toLowerCase().replace(' ', '')}`}>
-                {metrics.scheduleStatus}
-              </span>
-            </div>
-            <div className="timeline-item">
-              <span className="label">Total Elapsed (Days)</span>
-              <span className="value">{metrics.totalElapsedDays}</span>
-            </div>
-            <div className="timeline-item">
-              <span className="label">Working Days Elapsed</span>
-              <span className="value">{metrics.workingDaysElapsed}</span>
-            </div>
-            <div className="timeline-item">
-              <span className="label">Approx. Hours Rendered</span>
-              <span className="value">{metrics.approxHoursRendered}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <h3>TASK COUNTS & COMPLETION</h3>
-          <div className="stats-grid">
-            <div className="stat">
-              <span className="stat-number">{metrics.totalTasks}</span>
-              <span className="stat-label">Total Tasks</span>
-            </div>
-            <div className="stat">
-              <span className="stat-number">{metrics.completeTasks}</span>
-              <span className="stat-label">Complete</span>
-            </div>
-            <div className="stat">
-              <span className="stat-number">{metrics.inProgressTasks}</span>
-              <span className="stat-label">In Progress</span>
-            </div>
-            <div className="stat">
-              <span className="stat-number">{metrics.notStartedTasks}</span>
-              <span className="stat-label">Not Started</span>
-            </div>
-            <div className="stat">
-              <span className="stat-number">{metrics.overallCompletionRate}%</span>
-              <span className="stat-label">Completion Rate</span>
-            </div>
-            <div className="stat">
-              <span className="stat-number">{metrics.overdueTasks}</span>
-              <span className="stat-label">Overdue Tasks</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="card">
-        <h3>PHASE SUMMARY</h3>
-        <table className="phase-table">
-          <thead>
-            <tr>
-              <th>Phase</th>
-              <th>Total Tasks</th>
-              <th>Complete</th>
-              <th>In Progress</th>
-              <th>Not Started</th>
-              <th>Avg % Complete</th>
-              <th>Completion Rate</th>
-              <th>Start</th>
-              <th>End</th>
-            </tr>
-          </thead>
-          <tbody>
-            {phases.map((phase, idx) => (
-              <tr key={idx}>
-                <td>{phase.phase}</td>
-                <td>{phase.total_tasks}</td>
-                <td>{phase.complete_count}</td>
-                <td>{phase.in_progress_count}</td>
-                <td>{phase.not_started_count}</td>
-                <td>{Math.round(phase.avg_percent_complete)}%</td>
-                <td>{Math.round(phase.completion_rate)}%</td>
-                <td>{new Date(phase.phase_start).toLocaleDateString()}</td>
-                <td>{new Date(phase.phase_end).toLocaleDateString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* ... rest of dashboard JSX ... */}
     </div>
   );
 }
