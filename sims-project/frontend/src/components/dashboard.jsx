@@ -45,7 +45,7 @@ function Dashboard({ tasks }) {
       </div>
 
       <div className="hero-section">
-        <div className="card timeline-card">
+        <div className="card">
           <h3>TIMELINE & SCHEDULE</h3>
           <div className="timeline-grid">
             <div className="timeline-item">
@@ -77,7 +77,7 @@ function Dashboard({ tasks }) {
           </div>
         </div>
 
-        <div className="card task-counts-card">
+        <div className="card">
           <h3>TASK COUNTS & COMPLETION</h3>
           <div className="stats-grid">
             <div className="stat">
@@ -108,7 +108,7 @@ function Dashboard({ tasks }) {
         </div>
       </div>
 
-      <div className="card phase-summary-card">
+      <div className="card">
         <h3>PHASE SUMMARY</h3>
         <table className="phase-table">
           <thead>
@@ -145,4 +145,4 @@ function Dashboard({ tasks }) {
   );
 }
 
-export default dashboard;
+export default Dashboard;
