@@ -79,34 +79,39 @@ app.put('/api/projects/:id', (req, res) => {
 app.delete('/api/projects/:id', (req, res) => {
   const { id } = req.params;
   
-  // First, delete all tasks under this project
   db.run("DELETE FROM tasks WHERE project_id = ?", [id], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
     
-    // Then delete the project
-    db.run("DELETE FROM projects WHERE id = ?", [id], function(err) {
+    db.run("DELETE FROM phases WHERE project_id = ?", [id], function(err) {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
       }
-      if (this.changes === 0) {
-        res.status(404).json({ error: 'Project not found' });
-        return;
-      }
-      res.json({ message: 'Project and its tasks deleted successfully' });
+      
+      db.run("DELETE FROM projects WHERE id = ?", [id], function(err) {
+        if (err) {
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        if (this.changes === 0) {
+          res.status(404).json({ error: 'Project not found' });
+          return;
+        }
+        res.json({ message: 'Project and its tasks deleted successfully' });
+      });
     });
   });
 });
 
-// ============== TASKS API ==============
+// ============== PHASES API ==============
 
-// GET tasks by project ID (no filtering needed, direct by project)
-app.get('/api/tasks/:projectId', (req, res) => {
+// GET phases by project
+app.get('/api/phases/:projectId', (req, res) => {
   const { projectId } = req.params;
-  db.all("SELECT * FROM tasks WHERE project_id = ? ORDER BY id", [projectId], (err, rows) => {
+  db.all("SELECT * FROM phases WHERE project_id = ? ORDER BY id", [projectId], (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -115,7 +120,72 @@ app.get('/api/tasks/:projectId', (req, res) => {
   });
 });
 
-// GET all tasks (for projects page preview maybe)
+// POST new phase
+app.post('/api/phases', (req, res) => {
+  const { project_id, name } = req.body;
+  
+  db.run(`
+    INSERT INTO phases (project_id, name)
+    VALUES (?, ?)
+  `, [project_id, name], function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    res.json({ id: this.lastID, message: 'Phase created successfully' });
+  });
+});
+
+// DELETE phase
+app.delete('/api/phases/:id', (req, res) => {
+  const { id } = req.params;
+  
+  db.get("SELECT COUNT(*) as count FROM tasks WHERE phase_id = ?", [id], (err, row) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    
+    if (row.count > 0) {
+      res.status(400).json({ error: 'Cannot delete phase with existing tasks' });
+      return;
+    }
+    
+    db.run("DELETE FROM phases WHERE id = ?", [id], function(err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      if (this.changes === 0) {
+        res.status(404).json({ error: 'Phase not found' });
+        return;
+      }
+      res.json({ message: 'Phase deleted successfully' });
+    });
+  });
+});
+
+// ============== TASKS API ==============
+
+// GET tasks by project ID with phase name
+app.get('/api/tasks/:projectId', (req, res) => {
+  const { projectId } = req.params;
+  db.all(`
+    SELECT tasks.*, phases.name as phase_name 
+    FROM tasks 
+    LEFT JOIN phases ON tasks.phase_id = phases.id 
+    WHERE tasks.project_id = ? 
+    ORDER BY tasks.id
+  `, [projectId], (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    res.json(rows);
+  });
+});
+
+// GET all tasks
 app.get('/api/tasks', (req, res) => {
   db.all("SELECT * FROM tasks ORDER BY id", (err, rows) => {
     if (err) {
@@ -126,14 +196,14 @@ app.get('/api/tasks', (req, res) => {
   });
 });
 
-// POST new task (with project_id)
+// POST new task with is_milestone
 app.post('/api/tasks', (req, res) => {
-  const { project_id, phase, task_id, task_name, start_date, end_date, predecessors, duration, owner, percent_complete, status, notes } = req.body;
+  const { project_id, phase_id, task_id, task_name, start_date, end_date, predecessors, duration, owner, percent_complete, status, notes, is_milestone } = req.body;
   
   db.run(`
-    INSERT INTO tasks (project_id, phase, task_id, task_name, start_date, end_date, predecessors, duration, owner, percent_complete, status, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [project_id, phase, task_id, task_name, start_date, end_date, predecessors, duration, owner, percent_complete || 0, status || 'Not Started', notes || ''], function(err) {
+    INSERT INTO tasks (project_id, phase_id, task_id, task_name, start_date, end_date, predecessors, duration, owner, percent_complete, status, notes, is_milestone)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [project_id, phase_id, task_id, task_name, start_date, end_date, predecessors, duration, owner, percent_complete || 0, status || 'Not Started', notes || '', is_milestone || 0], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -142,16 +212,16 @@ app.post('/api/tasks', (req, res) => {
   });
 });
 
-// PUT update task
+// PUT update task with is_milestone
 app.put('/api/tasks/:id', (req, res) => {
   const { id } = req.params;
-  const { project_id, phase, task_id, task_name, start_date, end_date, predecessors, duration, owner, percent_complete, status, notes } = req.body;
+  const { project_id, phase_id, task_id, task_name, start_date, end_date, predecessors, duration, owner, percent_complete, status, notes, is_milestone } = req.body;
   
   db.run(`
     UPDATE tasks 
-    SET project_id = ?, phase = ?, task_id = ?, task_name = ?, start_date = ?, end_date = ?, predecessors = ?, duration = ?, owner = ?, percent_complete = ?, status = ?, notes = ?
+    SET project_id = ?, phase_id = ?, task_id = ?, task_name = ?, start_date = ?, end_date = ?, predecessors = ?, duration = ?, owner = ?, percent_complete = ?, status = ?, notes = ?, is_milestone = ?
     WHERE id = ?
-  `, [project_id, phase, task_id, task_name, start_date, end_date, predecessors, duration, owner, percent_complete, status, notes, id], function(err) {
+  `, [project_id, phase_id, task_id, task_name, start_date, end_date, predecessors, duration, owner, percent_complete, status, notes, is_milestone || 0, id], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -164,22 +234,62 @@ app.put('/api/tasks/:id', (req, res) => {
   });
 });
 
+// DELETE task
+app.delete('/api/tasks/:id', (req, res) => {
+  const { id } = req.params;
+  
+  db.run("DELETE FROM tasks WHERE id = ?", [id], function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (this.changes === 0) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
+    res.json({ message: 'Task deleted successfully' });
+  });
+});
+
+// ============== MILESTONES API ==============
+
+// GET milestones for a project
+app.get('/api/milestones/:projectId', (req, res) => {
+  const { projectId } = req.params;
+  db.all(`
+    SELECT tasks.*, phases.name as phase_name 
+    FROM tasks 
+    LEFT JOIN phases ON tasks.phase_id = phases.id 
+    WHERE tasks.project_id = ? AND tasks.is_milestone = 1
+    ORDER BY tasks.id
+  `, [projectId], (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    res.json(rows);
+  });
+});
+
 // ============== DASHBOARD METRICS API ==============
 
 // GET phase summary
 app.get('/api/phases', (req, res) => {
   db.all(`
     SELECT 
-      phase,
-      COUNT(*) as total_tasks,
-      SUM(CASE WHEN status = 'Complete' THEN 1 ELSE 0 END) as complete_count,
-      SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) as in_progress_count,
-      SUM(CASE WHEN status = 'Not Started' THEN 1 ELSE 0 END) as not_started_count,
-      AVG(percent_complete) as avg_percent_complete,
-      MIN(start_date) as phase_start,
-      MAX(end_date) as phase_end
-    FROM tasks
-    GROUP BY phase
+      phases.name as phase,
+      phases.id as phase_id,
+      COUNT(tasks.id) as total_tasks,
+      SUM(CASE WHEN tasks.status = 'Complete' THEN 1 ELSE 0 END) as complete_count,
+      SUM(CASE WHEN tasks.status = 'In Progress' THEN 1 ELSE 0 END) as in_progress_count,
+      SUM(CASE WHEN tasks.status = 'Not Started' THEN 1 ELSE 0 END) as not_started_count,
+      AVG(tasks.percent_complete) as avg_percent_complete,
+      MIN(tasks.start_date) as phase_start,
+      MAX(tasks.end_date) as phase_end
+    FROM phases
+    LEFT JOIN tasks ON phases.id = tasks.phase_id
+    GROUP BY phases.id
+    ORDER BY phases.id
   `, (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
@@ -188,11 +298,9 @@ app.get('/api/phases', (req, res) => {
     
     const phasesWithRates = rows.map(phase => ({
       ...phase,
-      // Avg % Complete = (Complete tasks) / (Total tasks) * 100 (based on STATUS)
       avg_percent_complete: phase.total_tasks > 0 
         ? Math.round((phase.complete_count / phase.total_tasks) * 100) 
         : 0,
-      // Completion Rate = average ng percent_complete column
       completion_rate: Math.round(phase.avg_percent_complete || 0)
     }));
     
@@ -208,34 +316,28 @@ app.get('/api/dashboard/metrics', (req, res) => {
       return;
     }
     
-    // Calculate metrics
     const totalTasks = tasks.length;
     const completeTasks = tasks.filter(t => t.status === 'Complete').length;
     const inProgressTasks = tasks.filter(t => t.status === 'In Progress').length;
     const notStartedTasks = tasks.filter(t => t.status === 'Not Started').length;
     
-    // AVG % COMPLETE = (Complete tasks) / (Total tasks) * 100 (based on STATUS)
     const avgPercentComplete = totalTasks > 0 
       ? Math.round((completeTasks / totalTasks) * 100) 
       : 0;
     
-    // COMPLETION RATE = average ng percent_complete ng lahat ng tasks
     const totalPercentComplete = tasks.reduce((sum, t) => sum + t.percent_complete, 0);
     const completionRate = totalTasks > 0 
       ? Math.round(totalPercentComplete / totalTasks) 
       : 0;
     
-    // Get project start and end dates (min start, max end)
     const startDates = tasks.map(t => new Date(t.start_date));
     const endDates = tasks.map(t => new Date(t.end_date));
     const projectStart = new Date(Math.min(...startDates));
     const projectEnd = new Date(Math.max(...endDates));
     
-    // Calculate elapsed days
     const today = new Date();
     const totalElapsedDays = Math.floor((today - projectStart) / (1000 * 60 * 60 * 24));
     
-    // Calculate working days (Monday-Friday)
     let workingDaysElapsed = 0;
     const currentDate = new Date(projectStart);
     while (currentDate <= today) {
@@ -248,7 +350,6 @@ app.get('/api/dashboard/metrics', (req, res) => {
     
     const approxHoursRendered = workingDaysElapsed * 8;
     
-    // Calculate schedule status (based on actual vs planned)
     const totalDuration = Math.floor((projectEnd - projectStart) / (1000 * 60 * 60 * 24));
     const plannedCompletion = totalDuration > 0 ? (totalElapsedDays / totalDuration) * 100 : 0;
     

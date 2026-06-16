@@ -3,12 +3,14 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import Dashboard from './components/Dashboard';
 import Workbook from './components/Workbook';
 import Projects from './components/Projects';
+import Milestones from './components/Milestones';
 import './App.css';
 
 function App() {
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [phases, setPhases] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProjects = async () => {
@@ -37,6 +39,17 @@ function App() {
     }
   };
 
+  const fetchPhases = async (projectId) => {
+    if (!projectId) return;
+    try {
+      const response = await fetch(`http://localhost:5000/api/phases/${projectId}`);
+      const data = await response.json();
+      setPhases(data);
+    } catch (error) {
+      console.error('Error fetching phases:', error);
+    }
+  };
+
   useEffect(() => {
     fetchProjects();
   }, []);
@@ -44,6 +57,7 @@ function App() {
   useEffect(() => {
     if (selectedProject) {
       fetchTasks(selectedProject.id);
+      fetchPhases(selectedProject.id);
     }
   }, [selectedProject]);
 
@@ -53,7 +67,6 @@ function App() {
 
   const handleProjectCreated = async () => {
     await fetchProjects();
-    // Auto-select the first project after creation
     if (projects.length > 0) {
       setSelectedProject(projects[0]);
     }
@@ -69,13 +82,14 @@ function App() {
         <nav className="navbar">
           <div className="nav-brand">SIMS</div>
           <div className="nav-links">
+            <Link to="/projects">Projects</Link>
             <Link to="/">Dashboard</Link>
             <Link to="/workbook">Workbook</Link>
-            <Link to="/projects">Projects</Link>
+            <Link to="/milestones">Milestones</Link>
           </div>
           {selectedProject && (
             <div className="project-selector">
-              📁 {selectedProject.name}
+              {selectedProject.name}
             </div>
           )}
         </nav>
@@ -90,7 +104,9 @@ function App() {
             <Workbook 
               tasks={tasks} 
               selectedProject={selectedProject}
+              phases={phases}
               fetchTasks={() => fetchTasks(selectedProject?.id)}
+              fetchPhases={() => fetchPhases(selectedProject?.id)}
             />
           } />
           <Route path="/projects" element={
@@ -100,6 +116,11 @@ function App() {
               onSelectProject={handleSelectProject}
               fetchProjects={fetchProjects}
               onProjectCreated={handleProjectCreated}
+            />
+          } />
+          <Route path="/milestones" element={
+            <Milestones 
+              selectedProject={selectedProject}
             />
           } />
         </Routes>

@@ -1,20 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import './workbook.css';
 
-const DEFAULT_PHASES = ['Initiation', '[P1] Prerequisites', '[P2] AP', '[P3] AR', '[P4] Inventory', '[P5] Peripherals'];
 const OWNERS = ['PM', 'UI UX', 'Team', 'KC, Jess', 'Jess, KC, Franco', 'Mayon', 'Rica, QA 2'];
 const STATUSES = ['Not Started', 'In Progress', 'Complete'];
 
-function Workbook({ tasks, selectedProject, fetchTasks }) {
+function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
   const [isAdding, setIsAdding] = useState(false);
-  const [isAddingPhase, setIsAddingPhase] = useState(false);
-  const [newPhaseName, setNewPhaseName] = useState('');
-  const [phases, setPhases] = useState(DEFAULT_PHASES);
   const [editingTask, setEditingTask] = useState(null);
-  const [lastPhase, setLastPhase] = useState(DEFAULT_PHASES[0]);
+  const [lastPhaseId, setLastPhaseId] = useState(null);
+  const [isCreatingNewPhase, setIsCreatingNewPhase] = useState(false);
+  const [newPhaseName, setNewPhaseName] = useState('');
   const [formData, setFormData] = useState({
     project_id: selectedProject ? selectedProject.id : null,
-    phase: DEFAULT_PHASES[0],
+    phase_id: null,
     task_id: '',
     task_name: '',
     start_date: '',
@@ -24,34 +22,102 @@ function Workbook({ tasks, selectedProject, fetchTasks }) {
     owner: OWNERS[0],
     percent_complete: 0,
     status: 'Not Started',
-    notes: ''
+    notes: '',
+    is_milestone: 0
   });
 
-  // Update lastPhase kapag may bagong task na na-add
+  // Generate task ID based on phase and existing tasks
+  const generateTaskId = (phaseId) => {
+    if (!phaseId) return '';
+
+    const phase = phases.find(p => p.id === phaseId);
+    if (!phase) return '';
+
+    const phaseMatch = phase.name.match(/\[P(\d+)\]/);
+    const phaseNumber = phaseMatch ? parseInt(phaseMatch[1]) : phaseId;
+    
+    const phaseTasks = tasks.filter(t => t.phase_id === phaseId);
+    
+    if (phaseTasks.length === 0) {
+      return String(phaseNumber);
+    }
+
+    const hasMainTask = phaseTasks.some(t => t.task_id === String(phaseNumber));
+    
+    if (!hasMainTask) {
+      return String(phaseNumber);
+    }
+
+    let maxSubNumber = 0;
+    phaseTasks.forEach(task => {
+      const parts = task.task_id.split('.');
+      if (parts.length === 2 && parts[0] === String(phaseNumber)) {
+        const subNum = parseInt(parts[1]);
+        if (!isNaN(subNum) && subNum > maxSubNumber) {
+          maxSubNumber = subNum;
+        }
+      }
+    });
+
+    return `${phaseNumber}.${maxSubNumber + 1}`;
+  };
+
+  useEffect(() => {
+    if (formData.phase_id && !editingTask) {
+      const newTaskId = generateTaskId(formData.phase_id);
+      setFormData(prev => ({ ...prev, task_id: newTaskId }));
+    }
+  }, [formData.phase_id, tasks, phases, editingTask]);
+
+  useEffect(() => {
+    if (formData.status === 'Complete') {
+      setFormData(prev => ({ ...prev, percent_complete: 100 }));
+    }
+  }, [formData.status]);
+
   useEffect(() => {
     if (tasks.length > 0) {
       const lastTask = tasks[tasks.length - 1];
-      setLastPhase(lastTask.phase);
-      setFormData(prev => ({ ...prev, phase: lastTask.phase }));
+      setLastPhaseId(lastTask.phase_id);
+      setFormData(prev => ({ ...prev, phase_id: lastTask.phase_id }));
+    } else if (phases && phases.length > 0) {
+      setLastPhaseId(phases[0].id);
+      setFormData(prev => ({ ...prev, phase_id: phases[0].id }));
     }
-  }, [tasks]);
+  }, [tasks, phases]);
 
-  // Update project_id when selected project changes
   useEffect(() => {
     if (selectedProject) {
       setFormData(prev => ({ ...prev, project_id: selectedProject.id }));
     }
   }, [selectedProject]);
 
+  useEffect(() => {
+    if (isAdding && lastPhaseId && !editingTask) {
+      setFormData(prev => ({ ...prev, phase_id: lastPhaseId }));
+    }
+  }, [isAdding, lastPhaseId, editingTask]);
+
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    
+    if (name === 'phase_id' && value === 'create-new') {
+      setIsCreatingNewPhase(true);
+      setNewPhaseName('');
+      return;
+    }
+    
+    if (type === 'checkbox') {
+      setFormData(prev => ({ ...prev, [name]: checked ? 1 : 0 }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const resetForm = () => {
     setFormData({
       project_id: selectedProject ? selectedProject.id : null,
-      phase: lastPhase,
+      phase_id: lastPhaseId,
       task_id: '',
       task_name: '',
       start_date: '',
@@ -61,21 +127,38 @@ function Workbook({ tasks, selectedProject, fetchTasks }) {
       owner: OWNERS[0],
       percent_complete: 0,
       status: 'Not Started',
-      notes: ''
+      notes: '',
+      is_milestone: 0
     });
     setIsAdding(false);
     setEditingTask(null);
+    setIsCreatingNewPhase(false);
+    setNewPhaseName('');
   };
 
-  // Handle new phase creation
-  const handleAddPhase = () => {
-    if (newPhaseName.trim() && !phases.includes(newPhaseName.trim())) {
-      const updatedPhases = [...phases, newPhaseName.trim()];
-      setPhases(updatedPhases);
-      setLastPhase(newPhaseName.trim());
-      setFormData(prev => ({ ...prev, phase: newPhaseName.trim() }));
-      setNewPhaseName('');
-      setIsAddingPhase(false);
+  const handleCreateNewPhase = async () => {
+    if (newPhaseName.trim() && selectedProject) {
+      try {
+        const response = await fetch('http://localhost:5000/api/phases', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project_id: selectedProject.id,
+            name: newPhaseName.trim()
+          })
+        });
+        
+        if (response.ok) {
+          await fetchPhases();
+          const data = await response.json();
+          setLastPhaseId(data.id);
+          setFormData(prev => ({ ...prev, phase_id: data.id }));
+          setIsCreatingNewPhase(false);
+          setNewPhaseName('');
+        }
+      } catch (error) {
+        console.error('Error creating phase:', error);
+      }
     }
   };
 
@@ -109,6 +192,24 @@ function Workbook({ tasks, selectedProject, fetchTasks }) {
     }
   };
 
+  const handleToggleMilestone = async (task) => {
+    const updatedTask = { ...task, is_milestone: task.is_milestone ? 0 : 1 };
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/tasks/${task.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedTask)
+      });
+      
+      if (response.ok) {
+        await fetchTasks();
+      }
+    } catch (error) {
+      console.error('Error updating milestone:', error);
+    }
+  };
+
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this task?')) {
       try {
@@ -126,7 +227,7 @@ function Workbook({ tasks, selectedProject, fetchTasks }) {
     setEditingTask(task);
     setFormData({
       project_id: selectedProject ? selectedProject.id : null,
-      phase: task.phase,
+      phase_id: task.phase_id,
       task_id: task.task_id,
       task_name: task.task_name,
       start_date: task.start_date,
@@ -136,12 +237,43 @@ function Workbook({ tasks, selectedProject, fetchTasks }) {
       owner: task.owner,
       percent_complete: task.percent_complete,
       status: task.status,
-      notes: task.notes || ''
+      notes: task.notes || '',
+      is_milestone: task.is_milestone || 0
     });
     setIsAdding(true);
   };
 
-  // Sort tasks by ID para nasa baba ang bagong task
+  const getPhaseName = (phaseId) => {
+    if (!phases) return 'Unknown Phase';
+    const phase = phases.find(p => p.id === phaseId);
+    return phase ? phase.name : 'Unknown Phase';
+  };
+
+  const getPhaseStyle = (phaseId) => {
+    if (!phases) return { backgroundColor: 'rgba(142,142,147,0.12)', color: '#8e8e93' };
+    const phase = phases.find(p => p.id === phaseId);
+    if (!phase) return { backgroundColor: 'rgba(142,142,147,0.12)', color: '#8e8e93' };
+
+    const phaseMatch = phase.name.match(/\[P(\d+)\]/);
+    const phaseNumber = phaseMatch ? parseInt(phaseMatch[1]) : phase.id;
+
+    const palette = [
+      { bg: 'rgba(0, 122, 255, 0.12)',   color: '#007aff' },
+      { bg: 'rgba(52, 199, 89, 0.12)',   color: '#34c759' },
+      { bg: 'rgba(255, 149, 0, 0.12)',   color: '#ff9500' },
+      { bg: 'rgba(255, 59, 48, 0.12)',   color: '#ff3b30' },
+      { bg: 'rgba(88, 86, 214, 0.12)',   color: '#5856d6' },
+      { bg: 'rgba(255, 45, 85, 0.12)',   color: '#ff2d55' },
+      { bg: 'rgba(48, 176, 192, 0.12)',  color: '#30b0c0' },
+      { bg: 'rgba(175, 82, 222, 0.12)',  color: '#af52de' },
+      { bg: 'rgba(100, 210, 255, 0.18)', color: '#0a84ff' },
+      { bg: 'rgba(255, 107, 107, 0.12)', color: '#d63030' },
+    ];
+
+    const { bg, color } = palette[(phaseNumber - 1) % palette.length];
+    return { backgroundColor: bg, color };
+  };
+
   const sortedTasks = [...tasks].sort((a, b) => a.id - b.id);
 
   if (!selectedProject) {
@@ -160,15 +292,9 @@ function Workbook({ tasks, selectedProject, fetchTasks }) {
       <div className="workbook-header">
         <div>
           <h2>Task Workbook</h2>
-          <p className="project-context">📁 {selectedProject.name}</p>
+          <p className="project-context">{selectedProject.name}</p>
         </div>
         <div className="header-buttons">
-          <button 
-            className="btn-add-phase"
-            onClick={() => setIsAddingPhase(true)}
-          >
-            + New Phase
-          </button>
           <button 
             className="btn-add"
             onClick={() => {
@@ -181,32 +307,6 @@ function Workbook({ tasks, selectedProject, fetchTasks }) {
         </div>
       </div>
 
-      {/* New Phase Modal */}
-      {isAddingPhase && (
-        <div className="modal-overlay">
-          <div className="modal small-modal">
-            <h3>Create New Phase</h3>
-            <div className="form-group">
-              <label>Phase Name</label>
-              <input 
-                type="text" 
-                value={newPhaseName} 
-                onChange={(e) => setNewPhaseName(e.target.value)}
-                placeholder="e.g., [P6] Deployment"
-                autoFocus
-              />
-            </div>
-            <div className="modal-actions">
-              <button type="button" className="btn-cancel" onClick={() => {
-                setIsAddingPhase(false);
-                setNewPhaseName('');
-              }}>Cancel</button>
-              <button type="button" className="btn-save" onClick={handleAddPhase}>Create Phase</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Add/Edit Task Modal */}
       {isAdding && (
         <div className="modal-overlay">
@@ -216,13 +316,57 @@ function Workbook({ tasks, selectedProject, fetchTasks }) {
               <div className="form-grid">
                 <div className="form-group">
                   <label>Phase *</label>
-                  <select name="phase" value={formData.phase} onChange={handleInputChange} required>
-                    {phases.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
+                  {!isCreatingNewPhase ? (
+                    <select name="phase_id" value={formData.phase_id || ''} onChange={handleInputChange} required>
+                      <option value="">Select Phase</option>
+                      {phases && phases.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      <option value="create-new" className="create-new-option">+ Create New Phase</option>
+                    </select>
+                  ) : (
+                    <div className="new-phase-input-group">
+                      <input 
+                        type="text" 
+                        value={newPhaseName} 
+                        onChange={(e) => setNewPhaseName(e.target.value)}
+                        placeholder="Enter new phase name (e.g., [P6] Deployment)"
+                        autoFocus
+                      />
+                      <div className="new-phase-actions">
+                        <button 
+                          type="button" 
+                          className="btn-cancel-small"
+                          onClick={() => {
+                            setIsCreatingNewPhase(false);
+                            setNewPhaseName('');
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          type="button" 
+                          className="btn-create-small"
+                          onClick={handleCreateNewPhase}
+                          disabled={!newPhaseName.trim()}
+                        >
+                          Create
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="form-group">
-                  <label>Task ID *</label>
-                  <input type="text" name="task_id" value={formData.task_id} onChange={handleInputChange} required />
+                  <label>Task ID</label>
+                  <input 
+                    type="text" 
+                    name="task_id" 
+                    value={formData.task_id} 
+                    onChange={handleInputChange} 
+                    disabled={!editingTask}
+                    className={!editingTask ? 'auto-generated' : ''}
+                  />
+                  {!editingTask && (
+                    <small className="hint-text">Auto-generated based on phase</small>
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Task Name *</label>
@@ -252,13 +396,36 @@ function Workbook({ tasks, selectedProject, fetchTasks }) {
                 </div>
                 <div className="form-group">
                   <label>% Complete</label>
-                  <input type="number" name="percent_complete" value={formData.percent_complete} onChange={handleInputChange} min="0" max="100" />
+                  <input 
+                    type="number" 
+                    name="percent_complete" 
+                    value={formData.percent_complete} 
+                    onChange={handleInputChange} 
+                    min="0" 
+                    max="100"
+                    disabled={formData.status === 'Complete'}
+                  />
+                  {formData.status === 'Complete' && (
+                    <small className="hint-text">Auto-set to 100% when Complete</small>
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Status *</label>
                   <select name="status" value={formData.status} onChange={handleInputChange} required>
                     {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
+                </div>
+                <div className="form-group">
+                  <label>Milestone</label>
+                  <div className="checkbox-group">
+                    <input 
+                      type="checkbox" 
+                      name="is_milestone" 
+                      checked={formData.is_milestone === 1} 
+                      onChange={handleInputChange}
+                    />
+                    <label className="checkbox-label">Mark as Milestone</label>
+                  </div>
                 </div>
                 <div className="form-group full-width">
                   <label>Notes</label>
@@ -295,31 +462,58 @@ function Workbook({ tasks, selectedProject, fetchTasks }) {
                 <th>% Complete</th>
                 <th>Status</th>
                 <th>Actions</th>
+                <th>Milestone</th>
               </tr>
             </thead>
             <tbody>
-              {sortedTasks.map((task) => (
-                <tr key={task.id}>
-                  <td>{task.phase}</td>
-                  <td>{task.task_id}</td>
-                  <td>{task.task_name}</td>
-                  <td>{new Date(task.start_date).toLocaleDateString()}</td>
-                  <td>{new Date(task.end_date).toLocaleDateString()}</td>
-                  <td>{task.predecessors || '—'}</td>
-                  <td>{task.duration}</td>
-                  <td>{task.owner}</td>
-                  <td>{task.percent_complete}%</td>
-                  <td>
-                    <span className={`status-badge status-${task.status.toLowerCase().replace(' ', '-')}`}>
-                      {task.status}
-                    </span>
-                  </td>
-                  <td className="actions">
-                    <button className="btn-edit" onClick={() => handleEdit(task)}>Edit</button>
-                    <button className="btn-delete" onClick={() => handleDelete(task.id)}>Delete</button>
-                  </td>
-                </tr>
-              ))}
+              {sortedTasks.map((task) => {
+                const phaseStyle = getPhaseStyle(task.phase_id);
+                return (
+                  <tr key={task.id}>
+                    <td>
+                      <span className="phase-button" style={phaseStyle}>
+                        {getPhaseName(task.phase_id)}
+                      </span>
+                    </td>
+                    <td>{task.task_id}</td>
+                    <td>{task.task_name}</td>
+                    <td>{new Date(task.start_date).toLocaleDateString()}</td>
+                    <td>{new Date(task.end_date).toLocaleDateString()}</td>
+                    <td>{task.predecessors || '—'}</td>
+                    <td>{task.duration}</td>
+                    <td>{task.owner}</td>
+                    <td>
+                      <div className="progress-bar-cell">
+                        <div className="progress-bar-track">
+                          <div 
+                            className="progress-bar-fill" 
+                            style={{ width: `${task.percent_complete}%` }}
+                          ></div>
+                        </div>
+                        <span className="progress-bar-text">{task.percent_complete}%</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`status-badge status-${task.status.toLowerCase().replace(' ', '-')}`}>
+                        {task.status}
+                      </span>
+                    </td>
+                    <td className="actions">
+                      <button className="btn-edit" onClick={() => handleEdit(task)}>Edit</button>
+                      <button className="btn-delete" onClick={() => handleDelete(task.id)}>Delete</button>
+                    </td>
+                    <td>
+                      <input 
+                        type="checkbox" 
+                        checked={task.is_milestone === 1}
+                        onChange={() => handleToggleMilestone(task)}
+                        className="milestone-checkbox"
+                        title="Mark as Milestone"
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

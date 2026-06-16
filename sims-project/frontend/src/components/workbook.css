@@ -14,7 +14,7 @@
 }
 
 .workbook-header h2 {
-  font-size: 1.5rem;
+  font-size: 2rem;
   font-weight: 700;
   background: linear-gradient(135deg, #007aff, #5856d6);
   -webkit-background-clip: text;
@@ -22,30 +22,15 @@
   color: transparent;
 }
 
+.project-context {
+  font-size: 1rem;
+  color: #8e8e93;
+  margin-top: 0.25rem;
+}
+
 .header-buttons {
   display: flex;
   gap: 0.75rem;
-}
-
-/* iOS Add Phase Button */
-.btn-add-phase {
-  background: #5856d6;
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.btn-add-phase:hover {
-  background: #4644b5;
-  transform: scale(0.98);
 }
 
 /* iOS Add Task Button */
@@ -53,9 +38,9 @@
   background: #007aff;
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
+  padding: 0.9rem 2rem;
   border-radius: 12px;
-  font-size: 0.9rem;
+  font-size: 1.1rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -89,24 +74,19 @@
 .modal {
   background: rgba(255, 255, 255, 0.98);
   border-radius: 28px;
-  padding: 1.75rem;
+  padding: 2rem;
   width: 90%;
-  max-width: 700px;
+  max-width: 750px;
   max-height: 85vh;
   overflow-y: auto;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
   border: 0.5px solid rgba(60, 60, 67, 0.08);
 }
 
-/* Small Modal for New Phase */
-.small-modal {
-  max-width: 400px;
-}
-
 .modal h3 {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
   color: #1c1c1e;
-  font-size: 1.3rem;
+  font-size: 1.6rem;
   font-weight: 600;
 }
 
@@ -114,7 +94,7 @@
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .form-group {
@@ -127,9 +107,9 @@
 }
 
 .form-group label {
-  font-size: 0.75rem;
+  font-size: 0.9rem;
   font-weight: 600;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.4rem;
   color: #8e8e93;
   text-transform: uppercase;
   letter-spacing: 0.3px;
@@ -138,10 +118,10 @@
 .form-group input,
 .form-group select,
 .form-group textarea {
-  padding: 0.75rem;
+  padding: 0.9rem;
   border: 0.5px solid rgba(60, 60, 67, 0.16);
   border-radius: 12px;
-  font-size: 0.9rem;
+  font-size: 1.05rem;
   font-family: inherit;
   background: white;
   transition: all 0.2s ease;
@@ -165,11 +145,11 @@
 
 .btn-cancel,
 .btn-save {
-  padding: 0.625rem 1.25rem;
+  padding: 0.75rem 1.75rem;
   border: none;
   border-radius: 10px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 1rem;
   font-weight: 500;
   transition: all 0.2s ease;
 }
@@ -205,12 +185,12 @@
 .tasks-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
+  font-size: 1.05rem;
 }
 
 .tasks-table th,
 .tasks-table td {
-  padding: 1rem;
+  padding: 1.1rem;
   text-align: left;
   border-bottom: 0.5px solid rgba(60, 60, 67, 0.08);
 }
@@ -219,7 +199,7 @@
   background: #f8f8fa;
   font-weight: 600;
   color: #8e8e93;
-  font-size: 0.7rem;
+  font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   position: sticky;
@@ -234,12 +214,44 @@
   background: #f8f8fa;
 }
 
+/* Progress Bar inside table */
+.progress-bar-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 110px;
+}
+
+.progress-bar-track {
+  flex: 1;
+  height: 12px;
+  background: #e9ecef;
+  border-radius: 6px;
+  overflow: hidden;
+  min-width: 70px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #34c759, #28a745);
+  border-radius: 6px;
+  transition: width 0.6s ease;
+}
+
+.progress-bar-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1c1c1e;
+  min-width: 38px;
+  text-align: right;
+}
+
 /* iOS Status Badges */
 .status-badge {
   display: inline-block;
-  padding: 0.25rem 0.75rem;
+  padding: 0.35rem 0.9rem;
   border-radius: 20px;
-  font-size: 0.7rem;
+  font-size: 0.9rem;
   font-weight: 600;
 }
 
@@ -266,11 +278,11 @@
 
 .btn-edit,
 .btn-delete {
-  padding: 0.35rem 0.85rem;
+  padding: 0.45rem 1.1rem;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 0.7rem;
+  font-size: 0.9rem;
   font-weight: 500;
   transition: all 0.2s ease;
 }
@@ -291,6 +303,132 @@
 
 .btn-delete:hover {
   background: rgba(255, 59, 48, 0.2);
+}
+
+/* New Phase Inline in Dropdown */
+.create-new-option {
+  color: #007aff;
+  font-weight: 500;
+  border-top: 1px solid rgba(60, 60, 67, 0.08);
+}
+
+.new-phase-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.new-phase-input-group input {
+  padding: 0.9rem;
+  border: 0.5px solid rgba(60, 60, 67, 0.16);
+  border-radius: 12px;
+  font-size: 1.05rem;
+  font-family: inherit;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.new-phase-input-group input:focus {
+  outline: none;
+  border-color: #007aff;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+.new-phase-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-cancel-small {
+  background: #f2f2f7;
+  color: #8e8e93;
+  border: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel-small:hover {
+  background: #e5e5ea;
+}
+
+.btn-create-small {
+  background: #007aff;
+  color: white;
+  border: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-create-small:hover {
+  background: #005fc9;
+}
+
+.btn-create-small:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Auto-generated task ID indicator */
+.auto-generated {
+  background: #f8f9fa;
+  color: #1c1c1e;
+  font-weight: 500;
+}
+
+.hint-text {
+  display: block;
+  font-size: 0.8rem;
+  color: #8e8e93;
+  margin-top: 0.25rem;
+}
+
+/* Phase Button - Same style as action buttons */
+.phase-button {
+  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  border: none;
+  border-radius: 8px;
+  cursor: default;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.phase-button:hover {
+  opacity: 0.85;
+  transform: scale(0.98);
+}
+
+/* No project / No tasks message */
+.no-project-message,
+.no-tasks-message {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border: 0.5px solid rgba(60, 60, 67, 0.06);
+}
+
+.no-project-message h2 {
+  font-size: 1.8rem;
+  color: #1c1c1e;
+  margin-bottom: 0.5rem;
+}
+
+.no-project-message p,
+.no-tasks-message p {
+  color: #8e8e93;
+  font-size: 1.1rem;
 }
 
 /* Responsive Design */
@@ -324,59 +462,29 @@
   .tasks-table th,
   .tasks-table td {
     padding: 0.75rem;
-    font-size: 0.75rem;
+    font-size: 0.9rem;
   }
   
   .btn-edit,
   .btn-delete {
-    padding: 0.25rem 0.6rem;
-    font-size: 0.65rem;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.8rem;
   }
-}
-/* No project / No tasks message */
-.no-project-message,
-.no-tasks-message {
-  text-align: center;
-  padding: 4rem 2rem;
-  background: white;
-  border-radius: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  border: 0.5px solid rgba(60, 60, 67, 0.06);
-}
-
-.no-project-message h2 {
-  font-size: 1.5rem;
-  color: #1c1c1e;
-  margin-bottom: 0.5rem;
-}
-
-.no-project-message p,
-.no-tasks-message p {
-  color: #8e8e93;
-  font-size: 1rem;
-}
-
-.project-context {
-  font-size: 0.85rem;
-  color: #8e8e93;
-  margin-top: 0.25rem;
 }
 
 @media (max-width: 480px) {
   .tasks-table th,
   .tasks-table td {
     padding: 0.5rem;
-    font-size: 0.7rem;
-  }
-  
-  .btn-add-phase,
-  .btn-add {
-    padding: 0.6rem 1rem;
     font-size: 0.8rem;
   }
   
-  .small-modal {
-    width: 95%;
-    margin: 0 1rem;
+  .btn-add {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+  }
+  
+  .modal {
+    padding: 1rem;
   }
 }

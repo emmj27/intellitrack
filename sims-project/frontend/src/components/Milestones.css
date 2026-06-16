@@ -1,0 +1,222 @@
+.milestones {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.milestones-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.milestones-header h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #007aff, #5856d6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.project-context {
+  font-size: 1rem;
+  color: #8e8e93;
+  margin-top: 0.25rem;
+}
+
+.milestone-count {
+  background: #007aff;
+  color: white;
+  padding: 0.5rem 1.2rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Table styles - same as Workbook */
+.tasks-table-container {
+  overflow-x: auto;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border: 0.5px solid rgba(60, 60, 67, 0.06);
+}
+
+.tasks-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1.05rem;
+}
+
+.tasks-table th,
+.tasks-table td {
+  padding: 1.1rem;
+  text-align: left;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.08);
+}
+
+.tasks-table th {
+  background: #f8f8fa;
+  font-weight: 600;
+  color: #8e8e93;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+}
+
+.tasks-table tr {
+  transition: background 0.2s ease;
+}
+
+.tasks-table tr:hover {
+  background: #f8f8fa;
+}
+
+/* Phase Button - same as Workbook */
+.phase-button {
+  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  border: none;
+  border-radius: 8px;
+  cursor: default;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.phase-button:hover {
+  opacity: 0.85;
+  transform: scale(0.98);
+}
+
+/* Progress Bar - same as Workbook */
+.progress-bar-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 110px;
+}
+
+.progress-bar-track {
+  flex: 1;
+  height: 12px;
+  background: #e9ecef;
+  border-radius: 6px;
+  overflow: hidden;
+  min-width: 70px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #34c759, #28a745);
+  border-radius: 6px;
+  transition: width 0.6s ease;
+}
+
+.progress-bar-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1c1c1e;
+  min-width: 38px;
+  text-align: right;
+}
+
+/* Status Badges - same as Workbook */
+.status-badge {
+  display: inline-block;
+  padding: 0.35rem 0.9rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.status-complete {
+  background: rgba(52, 199, 89, 0.12);
+  color: #34c759;
+}
+
+.status-in-progress {
+  background: rgba(255, 149, 0, 0.12);
+  color: #ff9500;
+}
+
+.status-not-started {
+  background: rgba(142, 142, 147, 0.12);
+  color: #8e8e93;
+}
+
+.status-blocked {
+  background: rgba(255, 59, 48, 0.12);
+  color: #ff3b30;
+}
+
+/* No messages */
+.no-milestones-message {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border: 0.5px solid rgba(60, 60, 67, 0.06);
+}
+
+.no-milestones-message p {
+  color: #8e8e93;
+  font-size: 1rem;
+}
+
+.no-milestones-message p strong {
+  color: #007aff;
+}
+
+.no-project-message {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border: 0.5px solid rgba(60, 60, 67, 0.06);
+}
+
+.no-project-message h2 {
+  font-size: 1.5rem;
+  color: #1c1c1e;
+  margin-bottom: 0.5rem;
+}
+
+.no-project-message p {
+  color: #8e8e93;
+  font-size: 1rem;
+}
+
+.loading {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #8e8e93;
+  font-size: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .milestones {
+    padding: 1rem;
+  }
+  
+  .milestones-header {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .tasks-table th,
+  .tasks-table td {
+    padding: 0.75rem;
+    font-size: 0.9rem;
+  }
+}
