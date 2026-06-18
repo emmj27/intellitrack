@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './workbook.css';
 
-const OWNERS = ['PM', 'UI UX', 'Team', 'KC, Jess', 'Jess, KC, Franco', 'Mayon', 'Rica, QA 2'];
-const STATUSES = ['Not Started', 'In Progress', 'Complete'];
+const OWNERS = ['PM', 'UI UX', 'Team', 'KC', 'Jess', 'Franco', 'Mayon', 'Rica, QA 2'];
+const STATUSES = ['Not Started', 'In Progress', 'On Hold', 'Complete', 'Cancelled'];
 
 function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
   const [isAdding, setIsAdding] = useState(false);
@@ -10,6 +10,9 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
   const [lastPhaseId, setLastPhaseId] = useState(null);
   const [isCreatingNewPhase, setIsCreatingNewPhase] = useState(false);
   const [newPhaseName, setNewPhaseName] = useState('');
+  const [ownerFilter, setOwnerFilter] = useState([]);
+  const [isOwnerFilterOpen, setIsOwnerFilterOpen] = useState(false);
+  const ownerFilterRef = useRef(null);
   const [formData, setFormData] = useState({
     project_id: selectedProject ? selectedProject.id : null,
     phase_id: null,
@@ -25,6 +28,16 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
     notes: '',
     is_milestone: 0
   });
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (ownerFilterRef.current && !ownerFilterRef.current.contains(e.target)) {
+        setIsOwnerFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Generate task ID based on phase and existing tasks
   const generateTaskId = (phaseId) => {
@@ -274,7 +287,28 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
     return { backgroundColor: bg, color };
   };
 
-  const sortedTasks = [...tasks].sort((a, b) => a.id - b.id);
+  const formatDate = (dateString) => {
+    if (!dateString) return '—';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const toggleOwnerFilter = (owner) => {
+    setOwnerFilter(prev => 
+      prev.includes(owner) 
+        ? prev.filter(o => o !== owner) 
+        : [...prev, owner]
+    );
+  };
+
+  const clearOwnerFilter = () => setOwnerFilter([]);
+
+  const sortedTasks = [...tasks]
+    .filter(t => ownerFilter.length === 0 || ownerFilter.includes(t.owner))
+    .sort((a, b) => a.id - b.id);
 
   if (!selectedProject) {
     return (
@@ -295,22 +329,43 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
           <p className="project-context">{selectedProject.name}</p>
         </div>
         <div className="header-buttons">
-          <button 
-            className="btn-add"
-            onClick={() => {
-              resetForm();
-              setIsAdding(true);
-            }}
-          >
-            + Add New Task
-          </button>
+          <button className="btn-add" onClick={() => setIsAdding(true)}>+ Add New Task</button> {/* Moved here */}
+          <div className="owner-filter-wrapper" ref={ownerFilterRef}></div>
+          <div className="owner-filter-wrapper" ref={ownerFilterRef}>
+            <button 
+              className="btn-filter"
+              onClick={() => setIsOwnerFilterOpen(!isOwnerFilterOpen)}
+            >
+              Filter by Owner {ownerFilter.length > 0 && `(${ownerFilter.length})`}
+            </button>
+            {isOwnerFilterOpen && (
+              <div className="owner-filter-dropdown">
+                <div className="owner-filter-dropdown-header">
+                  <span>Select Owners</span>
+                  {ownerFilter.length > 0 && (
+                    <button className="btn-clear-filter" onClick={clearOwnerFilter}>Clear</button>
+                  )}
+                </div>
+                {OWNERS.map(owner => (
+                  <label key={owner} className="owner-filter-option">
+                    <input 
+                      type="checkbox" 
+                      checked={ownerFilter.includes(owner)}
+                      onChange={() => toggleOwnerFilter(owner)}
+                    />
+                    <span>{owner}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Add/Edit Task Modal */}
+      {/* Add/Edit Task Bottom Panel */}
       {isAdding && (
-        <div className="modal-overlay">
-          <div className="modal">
+        <div className="bottom-panel">
+          <div className="bottom-panel-content">
             <h3>{editingTask ? 'Edit Task' : 'Add New Task'}</h3>
             <form onSubmit={handleSubmit}>
               <div className="form-grid">
@@ -385,7 +440,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
                   <input type="text" name="predecessors" value={formData.predecessors} onChange={handleInputChange} placeholder="e.g., 1.23, 1.24" />
                 </div>
                 <div className="form-group">
-                  <label>Duration (Days) *</label>
+                  <label>Hours Duration *</label>
                   <input type="number" name="duration" value={formData.duration} onChange={handleInputChange} required min="1" />
                 </div>
                 <div className="form-group">
@@ -446,6 +501,11 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
           <p>No tasks yet for this project.</p>
           <p>Click <strong>"+ Add New Task"</strong> to get started!</p>
         </div>
+      ) : sortedTasks.length === 0 ? (
+        <div className="no-tasks-message">
+          <p>No tasks match the selected owner filter.</p>
+          <p><button className="btn-clear-filter" onClick={clearOwnerFilter}>Clear filter</button> to see all tasks.</p>
+        </div>
       ) : (
         <div className="tasks-table-container">
           <table className="tasks-table">
@@ -457,7 +517,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
                 <th>Start Date</th>
                 <th>End Date</th>
                 <th>Predecessors</th>
-                <th>Duration</th>
+                <th>Hours<br/>Duration</th>
                 <th>Owner</th>
                 <th>% Complete</th>
                 <th>Status</th>
@@ -477,8 +537,8 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
                     </td>
                     <td>{task.task_id}</td>
                     <td>{task.task_name}</td>
-                    <td>{new Date(task.start_date).toLocaleDateString()}</td>
-                    <td>{new Date(task.end_date).toLocaleDateString()}</td>
+                    <td>{formatDate(task.start_date)}</td>
+                    <td>{formatDate(task.end_date)}</td>
                     <td>{task.predecessors || '—'}</td>
                     <td>{task.duration}</td>
                     <td>{task.owner}</td>
@@ -514,8 +574,92 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
                   </tr>
                 );
               })}
+              {isAdding && (
+  <tr className="new-task-row">
+    {/* Phase Dropdown */}
+    {!isCreatingNewPhase ? (
+    <select name="phase_id" value={formData.phase_id || ''} onChange={handleInputChange}>
+      <option value="">Select Phase</option>
+      {phases.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+      <option value="create-new">+ Create New Phase</option>
+    </select>
+  ) : (
+    <div className="new-phase-inline">
+      <input 
+        type="text" 
+        value={newPhaseName} 
+        onChange={(e) => setNewPhaseName(e.target.value)}
+        placeholder="Name..."
+        autoFocus
+      />
+      <div className="new-phase-actions">
+        <button type="button" className="btn-save" onClick={handleCreateNewPhase}>✓</button>
+        <button type="button" className="btn-cancel" onClick={() => setIsCreatingNewPhase(false)}>✕</button>
+      </div>
+    </div>
+  )}
+    
+    {/* Auto-generated Task ID */}
+    <td>{formData.task_id}</td>
+    
+    <td><input type="text" name="task_name" value={formData.task_name} onChange={handleInputChange} placeholder="Task Name..." /></td>
+    <td><input type="date" name="start_date" value={formData.start_date} onChange={handleInputChange} /></td>
+    <td><input type="date" name="end_date" value={formData.end_date} onChange={handleInputChange} /></td>
+    <td><input type="text" name="predecessors" value={formData.predecessors} onChange={handleInputChange} /></td>
+    <td><input type="number" name="duration" value={formData.duration} onChange={handleInputChange} /></td>
+    
+    {/* Owner Dropdown */}
+    <td>
+      <select name="owner" value={formData.owner} onChange={handleInputChange}>
+        {OWNERS.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </td>
+    
+    {/* Progress Range Slider */}
+    <td>
+      <input 
+        type="range" 
+        name="percent_complete" 
+        min="0" max="100" 
+        value={formData.percent_complete} 
+        onChange={handleInputChange} 
+        style={{ width: '80px' }}
+      />
+      <span>{formData.percent_complete}%</span>
+    </td>
+    
+    {/* Status Dropdown */}
+    <td>
+      <select name="status" value={formData.status} onChange={handleInputChange}>
+        {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+      </select>
+    </td>
+    
+    {/* Actions */}
+    <td className="actions">
+      <button className="btn-save" onClick={handleSubmit}>Save</button>
+      <button className="btn-cancel" onClick={resetForm}>Cancel</button>
+    </td>
+    
+    <td><input type="checkbox" name="is_milestone" onChange={handleInputChange} /></td>
+  </tr>
+)}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!isAdding && (
+        <div className="add-task-footer">
+          <button 
+            className="btn-add"
+            onClick={() => {
+              resetForm();
+              setIsAdding(true);
+            }}
+          >
+            + Add New Task
+          </button>
         </div>
       )}
     </div>

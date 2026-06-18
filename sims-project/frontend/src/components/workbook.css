@@ -1,7 +1,9 @@
 .workbook {
-  padding: 2rem;
-  max-width: 1400px;
+  padding: 1.5rem 2rem;
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .workbook-header {
@@ -31,9 +33,9 @@
 .header-buttons {
   display: flex;
   gap: 0.75rem;
+  align-items: center;
 }
 
-/* iOS Add Task Button */
 .btn-add {
   background: #007aff;
   color: white;
@@ -53,44 +55,112 @@
   background: #005fc9;
   transform: scale(0.98);
 }
+.new-task-row td {
+  padding: 0.4rem;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.08);
+}
 
-/* iOS Modal Overlay */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+/* Range slider styling for inline row */
+.new-task-row input[type="range"] {
+  display: block;
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+/* Ensure dropdowns look consistent with inputs */
+.new-task-row select {
+  width: 100%;
+  padding: 0.3rem;
+  border: 1px solid rgba(60, 60, 67, 0.2);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  background-color: white;
+}
+
+.new-task-row input,
+  .new-task-row select {
+  width: 100%;
+  padding: 0.3rem;
+  border: 1px solid rgba(60, 60, 67, 0.2);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  box-sizing: border-box;
+}
+
+.new-task-row .actions {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
-/* Modal */
-.modal {
-  background: rgba(255, 255, 255, 0.98);
-  border-radius: 28px;
-  padding: 2rem;
-  width: 90%;
-  max-width: 750px;
-  max-height: 85vh;
+.new-task-row .btn-save, 
+.new-task-row .btn-cancel {
+  width: 100%;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.7rem;
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+}
+
+.new-task-row .btn-save { background: #007aff; color: white; }
+.new-task-row .btn-cancel { background: #f2f2f7; color: #8e8e93; }
+
+.new-phase-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.new-phase-inline input {
+  padding: 0.2rem;
+  font-size: 0.7rem;
+}
+
+.new-phase-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.new-phase-actions .btn-save, 
+.new-phase-actions .btn-cancel {
+  padding: 0.1rem 0.3rem;
+  font-size: 0.6rem;
+  width: 50%;
+}
+
+.bottom-panel {
+  display: none;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.bottom-panel-content {
+  padding: 1.75rem 2rem;
+  max-height: 70vh;
   overflow-y: auto;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
-  border: 0.5px solid rgba(60, 60, 67, 0.08);
 }
 
-.modal h3 {
-  margin-bottom: 1.5rem;
+.bottom-panel-content h3 {
+  margin-bottom: 1.25rem;
   color: #1c1c1e;
-  font-size: 1.6rem;
+  font-size: 1.4rem;
   font-weight: 600;
 }
 
-/* Form Grid */
+.add-task-footer {
+  display: none;
+  }
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -135,7 +205,6 @@
   box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
 }
 
-/* Modal Actions */
 .modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -172,38 +241,59 @@
   background: #005fc9;
 }
 
-/* iOS Table Container */
 .tasks-table-container {
   overflow-x: auto;
   background: white;
-  border-radius: 20px;
+  border-radius: 16px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   border: 0.5px solid rgba(60, 60, 67, 0.06);
+  width: 100%;
 }
 
-/* iOS Table */
 .tasks-table {
   width: 100%;
+  table-layout: auto;
   border-collapse: collapse;
-  font-size: 1.05rem;
+  font-size: 0.75rem;
 }
 
 .tasks-table th,
 .tasks-table td {
-  padding: 1.1rem;
+  padding: 0.6rem 0.5rem;
   text-align: left;
   border-bottom: 0.5px solid rgba(60, 60, 67, 0.08);
+  white-space: normal;
+  vertical-align: middle;
+}
+
+.tasks-table th:nth-child(1)  { width: 12%; }
+.tasks-table th:nth-child(2)  { width: 6%; }
+.tasks-table th:nth-child(3)  { width: 18%; }
+.tasks-table th:nth-child(4)  { width: 9%; }
+.tasks-table th:nth-child(5)  { width: 9%; }
+.tasks-table th:nth-child(6)  { width: 9%; }
+.tasks-table th:nth-child(7)  { width: 6%; }
+.tasks-table th:nth-child(8)  { width: 8%; }
+.tasks-table th:nth-child(9)  { width: 9%; }
+.tasks-table th:nth-child(10) { width: 7%; }
+.tasks-table th:nth-child(11) { width: 5%; }
+.tasks-table th:nth-child(12) { width: 5%; }
+
+.tasks-table td:nth-child(4),
+.tasks-table td:nth-child(5) {
+  white-space: nowrap;
 }
 
 .tasks-table th {
   background: #f8f8fa;
   font-weight: 600;
   color: #8e8e93;
-  font-size: 0.9rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
   position: sticky;
   top: 0;
+  white-space: nowrap;
 }
 
 .tasks-table tr {
@@ -214,45 +304,44 @@
   background: #f8f8fa;
 }
 
-/* Progress Bar inside table */
 .progress-bar-cell {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  min-width: 110px;
+  gap: 0.4rem;
+  min-width: 100px;
 }
 
 .progress-bar-track {
   flex: 1;
-  height: 12px;
+  height: 8px;
   background: #e9ecef;
-  border-radius: 6px;
+  border-radius: 4px;
   overflow: hidden;
-  min-width: 70px;
+  min-width: 30px;
 }
 
 .progress-bar-fill {
   height: 100%;
   background: linear-gradient(90deg, #34c759, #28a745);
-  border-radius: 6px;
+  border-radius: 4px;
   transition: width 0.6s ease;
 }
 
 .progress-bar-text {
-  font-size: 0.95rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: #1c1c1e;
-  min-width: 38px;
+  min-width: 32px;
   text-align: right;
 }
 
-/* iOS Status Badges */
 .status-badge {
   display: inline-block;
-  padding: 0.35rem 0.9rem;
-  border-radius: 20px;
-  font-size: 0.9rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 14px;
+  font-size: 0.72rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .status-complete {
@@ -270,21 +359,30 @@
   color: #8e8e93;
 }
 
-/* Action Buttons */
+.status-on-hold {
+  background: rgba(255, 149, 0, 0.18);
+  color: #c2750c;
+}
+
+.status-cancelled {
+  background: rgba(255, 59, 48, 0.12);
+  color: #ff3b30;
+}
+
 .actions {
   display: flex;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.25rem 0;
+  align-items: center;
 }
 
 .btn-edit,
 .btn-delete {
-  padding: 0.45rem 1.1rem;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.7rem;
+  width: 100%;
+  max-width: 50px;
+  white-space: nowrap;
 }
 
 .btn-edit {
@@ -305,7 +403,6 @@
   background: rgba(255, 59, 48, 0.2);
 }
 
-/* New Phase Inline in Dropdown */
 .create-new-option {
   color: #007aff;
   font-weight: 500;
@@ -376,7 +473,6 @@
   cursor: not-allowed;
 }
 
-/* Auto-generated task ID indicator */
 .auto-generated {
   background: #f8f9fa;
   color: #1c1c1e;
@@ -390,14 +486,13 @@
   margin-top: 0.25rem;
 }
 
-/* Phase Button - Same style as action buttons */
 .phase-button {
   display: inline-block;
-  padding: 0.35rem 0.85rem;
+  padding: 0.25rem 0.55rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: default;
-  font-size: 0.85rem;
+  font-size: 0.72rem;
   font-weight: 500;
   transition: all 0.2s ease;
   white-space: nowrap;
@@ -408,7 +503,6 @@
   transform: scale(0.98);
 }
 
-/* No project / No tasks message */
 .no-project-message,
 .no-tasks-message {
   text-align: center;
@@ -431,7 +525,92 @@
   font-size: 1.1rem;
 }
 
-/* Responsive Design */
+.owner-filter-wrapper {
+  position: relative;
+}
+
+.btn-filter {
+  background: white;
+  color: #007aff;
+  border: 0.5px solid rgba(0, 122, 255, 0.3);
+  padding: 0.9rem 1.5rem;
+  border-radius: 12px;
+  font-size: 1.05rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-filter:hover {
+  background: rgba(0, 122, 255, 0.08);
+}
+
+.owner-filter-dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+  border: 0.5px solid rgba(60, 60, 67, 0.08);
+  padding: 0.75rem;
+  min-width: 240px;
+  z-index: 100;
+}
+
+.owner-filter-dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0.6rem 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #8e8e93;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.08);
+  margin-bottom: 0.4rem;
+}
+
+.btn-clear-filter {
+  background: none;
+  border: none;
+  color: #007aff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 0;
+}
+
+.btn-clear-filter:hover {
+  text-decoration: underline;
+}
+
+.owner-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #1c1c1e;
+  transition: background 0.15s ease;
+}
+
+.owner-filter-option:hover {
+  background: #f2f2f7;
+}
+
+.owner-filter-option input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #007aff;
+}
+
 @media (max-width: 768px) {
   .workbook {
     padding: 1rem;
@@ -447,6 +626,11 @@
     justify-content: center;
   }
   
+  .owner-filter-dropdown {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
   .form-grid {
     grid-template-columns: 1fr;
   }
@@ -455,20 +639,23 @@
     grid-column: span 1;
   }
   
-  .modal {
+  .bottom-panel-content {
     padding: 1.25rem;
+  }
+  
+  .tasks-table-container {
+    overflow-x: auto;
+  }
+  
+  .tasks-table {
+    table-layout: auto;
+    min-width: 900px;
   }
   
   .tasks-table th,
   .tasks-table td {
     padding: 0.75rem;
-    font-size: 0.9rem;
-  }
-  
-  .btn-edit,
-  .btn-delete {
-    padding: 0.3rem 0.8rem;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
   }
 }
 
@@ -484,7 +671,7 @@
     font-size: 0.9rem;
   }
   
-  .modal {
+  .bottom-panel-content {
     padding: 1rem;
   }
 }
