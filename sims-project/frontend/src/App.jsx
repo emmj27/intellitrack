@@ -4,7 +4,7 @@ import Dashboard from './components/Dashboard';
 import Workbook from './components/Workbook';
 import Projects from './components/Projects';
 import Milestones from './components/Milestones';
-import SprintTracker from './components/SprintTracker'; // 1. Import Sprint Tracker
+import SprintTrackerPage from './components/SprintTrackerPage';
 import './App.css';
 
 function App() {
@@ -97,14 +97,14 @@ function App() {
         </nav>
         <Routes>
           <Route path="/" element={
-            <Dashboard 
-              tasks={tasks} 
+            <Dashboard
+              tasks={tasks}
               selectedProject={selectedProject}
             />
           } />
           <Route path="/workbook" element={
-            <Workbook 
-              tasks={tasks} 
+            <Workbook
+              tasks={tasks}
               selectedProject={selectedProject}
               phases={phases}
               fetchTasks={() => fetchTasks(selectedProject?.id)}
@@ -112,7 +112,7 @@ function App() {
             />
           } />
           <Route path="/projects" element={
-            <Projects 
+            <Projects
               projects={projects}
               selectedProject={selectedProject}
               onSelectProject={handleSelectProject}
@@ -121,13 +121,13 @@ function App() {
             />
           } />
           <Route path="/milestones" element={
-            <Milestones 
+            <Milestones
               selectedProject={selectedProject}
             />
           } />
           {/* 3. Add Sprint Tracker Routing */}
           <Route path="/sprint-tracker" element={
-            <SprintTracker />
+            <SprintTrackerPage />
           } />
         </Routes>
       </div>
