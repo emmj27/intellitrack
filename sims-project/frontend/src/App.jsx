@@ -80,7 +80,7 @@ function App() {
     <Router>
       <div className="app">
         <nav className="navbar">
-          <div className="nav-brand">SIMS</div>
+          <div className="nav-brand">IntelliTrack</div>
           <div className="nav-links">
             <Link to="/projects">Projects</Link>
             <Link to="/">Dashboard</Link>

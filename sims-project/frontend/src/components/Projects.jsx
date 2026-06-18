@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './Projects.css';
 
+
 function Projects({ projects, selectedProject, onSelectProject, fetchProjects }) {
   const [isCreating, setIsCreating] = useState(false);
   const [newProject, setNewProject] = useState({
@@ -475,14 +476,14 @@ function Projects({ projects, selectedProject, onSelectProject, fetchProjects })
                       className="create-menu-item"
                       onClick={() => handleMenuItemClick('project')}
                     >
-                      <span className="menu-icon">📋</span>
+                      <span className="menu-icon"></span>
                       Create New Project
                     </button>
                     <button 
                       className="create-menu-item"
                       onClick={() => handleMenuItemClick('developer')}
                     >
-                      <span className="menu-icon">👤</span>
+                      <span className="menu-icon"></span>
                       Add New Developer
                     </button>
                   </div>
@@ -706,36 +707,29 @@ function Projects({ projects, selectedProject, onSelectProject, fetchProjects })
                       className={`project-list-item ${isSelected ? 'selected' : ''} ${isPreview ? 'preview' : ''}`}
                       onClick={() => handleProjectClick(project)}
                     >
-                      <div className="project-item-content">
-                        <div className="project-item-header">
-                          <span className="project-item-name">{project.name}</span>
-                          <span 
-                            className="project-item-status"
-                            style={{ backgroundColor: getStatusColor(status) }}
-                          >
-                            {status}
-                          </span>
-                        </div>
-                        <div className="project-item-dates">
-                          {project.start_date && (
-                            <span>{formatDate(project.start_date)}</span>
-                          )}
-                          {project.end_date && (
-                            <span> → {formatDate(project.end_date)}</span>
-                          )}
-                        </div>
-                        <div className="project-item-progress">
-                          <div className="progress-bar">
-                            <div 
-                              className="progress-fill" 
-                              style={{ width: `${progress}%` }}
-                            ></div>
-                          </div>
-                          <span className="progress-text">{progress}%</span>
-                        </div>
-                        {isSelected && (
-                          <div className="selected-indicator">✓</div>
+                      <span className="project-item-name">{project.name}</span>
+                      <span 
+                        className="project-item-status"
+                        style={{ backgroundColor: getStatusColor(status) }}
+                      >
+                        {status}
+                      </span>
+                      <span className="project-item-dates">
+                        {project.start_date && (
+                          <span>{formatDate(project.start_date)}</span>
                         )}
+                        {project.end_date && (
+                          <span> → {formatDate(project.end_date)}</span>
+                        )}
+                      </span>
+                      <div className="project-item-progress">
+                        <div className="progress-bar">
+                          <div 
+                            className="progress-fill" 
+                            style={{ width: `${progress}%` }}
+                          ></div>
+                        </div>
+                        <span className="progress-text">{progress}%</span>
                       </div>
                     </div>
                   );
@@ -842,7 +836,7 @@ function Projects({ projects, selectedProject, onSelectProject, fetchProjects })
                           className="dropdown-item edit"
                           onClick={handleEditClick}
                         >
-                          <span className="dropdown-icon">✏️</span>
+                          <span className="dropdown-icon"></span>
                           Edit Project
                         </button>
                         <div className="dropdown-divider"></div>
@@ -850,7 +844,7 @@ function Projects({ projects, selectedProject, onSelectProject, fetchProjects })
                           className="dropdown-item delete"
                           onClick={() => handleDeleteProject(displayProject.id)}
                         >
-                          <span className="dropdown-icon">🗑️</span>
+                          <span className="dropdown-icon"></span>
                           Delete Project
                         </button>
                       </div>
