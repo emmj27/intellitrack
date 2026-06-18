@@ -40,40 +40,39 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
   }, []);
 
   // Generate task ID based on phase and existing tasks
-  const generateTaskId = (phaseId) => {
-    if (!phaseId) return '';
-
-    const phase = phases.find(p => p.id === phaseId);
-    if (!phase) return '';
-
-    const phaseMatch = phase.name.match(/\[P(\d+)\]/);
-    const phaseNumber = phaseMatch ? parseInt(phaseMatch[1]) : phaseId;
-    
-    const phaseTasks = tasks.filter(t => t.phase_id === phaseId);
-    
-    if (phaseTasks.length === 0) {
-      return String(phaseNumber);
-    }
-
-    const hasMainTask = phaseTasks.some(t => t.task_id === String(phaseNumber));
-    
-    if (!hasMainTask) {
-      return String(phaseNumber);
-    }
-
-    let maxSubNumber = 0;
-    phaseTasks.forEach(task => {
-      const parts = task.task_id.split('.');
-      if (parts.length === 2 && parts[0] === String(phaseNumber)) {
-        const subNum = parseInt(parts[1]);
-        if (!isNaN(subNum) && subNum > maxSubNumber) {
-          maxSubNumber = subNum;
-        }
-      }
-    });
-
-    return `${phaseNumber}.${maxSubNumber + 1}`;
+  const getNextPhaseNumber = () => {
+  const phaseNumbers = phases.map(p => {
+    const match = p.name.match(/\[P(\d+)\]/);
+    return match ? parseInt(match[1]) : 0;
+  });
+  return Math.max(...phaseNumbers, 0) + 1;
   };
+
+  const generateTaskId = (phaseId) => {
+  if (!phaseId) return '';
+  const phase = phases.find(p => p.id === phaseId);
+  if (!phase) return '';
+
+  const phaseMatch = phase.name.match(/\[P(\d+)\]/);
+  const phaseNumber = phaseMatch ? parseInt(phaseMatch[1]) : 1;
+  
+  const phaseTasks = tasks.filter(t => t.phase_id === phaseId);
+  
+  // If no tasks, it's the first task (e.g., "1")
+  if (phaseTasks.length === 0) return String(phaseNumber);
+
+  // Find the highest decimal currently in this phase
+  let maxSub = 0;
+  phaseTasks.forEach(t => {
+    const parts = t.task_id.split('.');
+    if (parts.length > 1) {
+      const sub = parseInt(parts[1]);
+      if (sub > maxSub) maxSub = sub;
+    }
+  });
+
+  return `${phaseNumber}.${maxSub + 1}`;
+};
 
   useEffect(() => {
     if (formData.phase_id && !editingTask) {
@@ -177,6 +176,10 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!validatePredecessors(formData.predecessors)) {
+    return; 
+  }
     
     const taskData = {
       ...formData,
@@ -303,6 +306,22 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
         : [...prev, owner]
     );
   };
+  const validatePredecessors = (predecessorInput) => {
+  if (!predecessorInput) return true;
+  
+  const predecessors = predecessorInput.split(',').map(s => s.trim());
+  
+  for (const predId of predecessors) {
+    const foundTask = tasks.find(t => t.task_id === predId);
+    
+    // Check if task exists and if it is marked as 'Complete'
+    if (!foundTask || foundTask.status !== 'Complete') {
+      alert(`Validation Error: Predecessor task ${predId} is not 'Complete' or does not exist.`);
+      return false;
+    }
+  }
+  return true;
+};
 
   const clearOwnerFilter = () => setOwnerFilter([]);
 
@@ -361,7 +380,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
           </div>
         </div>
       </div>
-
+  
       {/* Add/Edit Task Bottom Panel */}
       {isAdding && (
         <div className="bottom-panel">
@@ -662,6 +681,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
           </button>
         </div>
       )}
+      
     </div>
   );
 }
