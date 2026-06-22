@@ -1,23 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import Dashboard from './components/Dashboard';
 import Workbook from './components/Workbook';
 import Projects from './components/Projects';
 import Milestones from './components/Milestones';
-import SprintTrackerPage from './components/SprintTrackerPage';
+import SprintTracker from './components/SprintTracker'; // 1. Import Sprint Tracker
 import './App.css';
 
-function App() {
+function AppContent() {
+  const location = useLocation();
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [phases, setPhases] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [projectTasks, setProjectTasks] = useState({});
+  
+  const isProjectsPage = location.pathname === '/projects';
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/projects');
-      const data = await response.json();
+      const data = await db.fetchProjects();
       setProjects(data);
       if (data.length > 0 && !selectedProject) {
         setSelectedProject(data[0]);
@@ -32,8 +35,7 @@ function App() {
   const fetchTasks = async (projectId) => {
     if (!projectId) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/tasks/${projectId}`);
-      const data = await response.json();
+      const data = await db.fetchTasksByProject(projectId);
       setTasks(data);
     } catch (error) {
       console.error('Error fetching tasks:', error);
@@ -43,17 +45,36 @@ function App() {
   const fetchPhases = async (projectId) => {
     if (!projectId) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/phases/${projectId}`);
-      const data = await response.json();
+      const data = await db.fetchPhasesByProject(projectId);
       setPhases(data);
     } catch (error) {
       console.error('Error fetching phases:', error);
     }
   };
 
+  // Fetch tasks for all projects to determine status
+  const fetchAllProjectTasks = async () => {
+    try {
+      const tasksData = {};
+      for (const project of projects) {
+        const data = await db.fetchTasksByProject(project.id);
+        tasksData[project.id] = data;
+      }
+      setProjectTasks(tasksData);
+    } catch (error) {
+      console.error('Error fetching project tasks:', error);
+    }
+  };
+
   useEffect(() => {
     fetchProjects();
   }, []);
+
+  useEffect(() => {
+    if (projects.length > 0) {
+      fetchAllProjectTasks();
+    }
+  }, [projects]);
 
   useEffect(() => {
     if (selectedProject) {
@@ -77,34 +98,126 @@ function App() {
     return <div className="loading">Loading...</div>;
   }
 
+  // Get current page name for active state
+  const getPageName = () => {
+    const path = location.pathname;
+    if (path === '/') return 'Dashboard';
+    if (path === '/workbook') return 'Workbook';
+    if (path === '/milestones') return 'Milestones';
+    if (path === '/sprint-tracker') return 'Sprint Tracker';
+    if (path === '/projects') return 'Projects';
+    return '';
+  };
+
+  const currentPage = getPageName();
+
+  // Calculate project status - Same logic as Projects tab
+  const calculateProjectStatus = (project) => {
+    if (!project || !project.start_date || !project.end_date) return 'On Track';
+    
+    const today = new Date();
+    const start = new Date(project.start_date);
+    const end = new Date(project.end_date);
+    
+    // If project end date is in the past, mark as Done
+    if (today > end) return 'Done';
+    
+    // Get tasks for this project
+    const tasks = projectTasks[project.id] || [];
+    
+    // Check if ANY task is overdue (not complete and end date is in the past)
+    const hasOverdueTasks = tasks.some(t => {
+      if (t.status === 'Complete') return false;
+      const taskEnd = new Date(t.end_date);
+      return taskEnd < today;
+    });
+    
+    // If there's at least one overdue task, mark as Behind
+    if (hasOverdueTasks) return 'Behind';
+    
+    // If project hasn't started yet, mark as On Track
+    if (today < start) return 'On Track';
+    
+    // Calculate progress to determine if Behind or On Track
+    const totalDuration = end - start;
+    const elapsed = today - start;
+    const progress = (elapsed / totalDuration) * 100;
+    
+    const totalTasks = tasks.length;
+    if (totalTasks === 0) return 'On Track';
+    
+    const completedTasks = tasks.filter(t => t.status === 'Complete').length;
+    const completionRate = (completedTasks / totalTasks) * 100;
+    const difference = completionRate - progress;
+    
+    // If completion rate is significantly behind schedule, mark as Behind
+    if (difference < -15) return 'Behind';
+    
+    return 'On Track';
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      'On Track': '#34c759',
+      'Behind': '#ff3b30',
+      'Done': '#5856d6'
+    };
+    return colors[status] || '#8e8e93';
+  };
+
   return (
-    <Router>
-      <div className="app">
-        <nav className="navbar">
-          <div className="nav-brand">IntelliTrack</div>
-          <div className="nav-links">
-            <Link to="/projects">Projects</Link>
-            <Link to="/">Dashboard</Link>
-            <Link to="/workbook">Workbook</Link>
-            <Link to="/milestones">Milestones</Link>
-            <Link to="/sprint-tracker">Sprint Tracker</Link> {/* 2. Add Nav Link */}
+    <div className="app">
+      {/* Show global navbar with new design for non-project pages */}
+      {!isProjectsPage && (
+        <nav className="navbar-new">
+          <div className="navbar-new-top">
+            <div className="navbar-brand">IntelliTrack</div>
+            {selectedProject && (
+              <div className="navbar-current-project">
+                <span className="navbar-project-name">{selectedProject.name}</span>
+                <span 
+                  className="navbar-project-dot"
+                  style={{ backgroundColor: getStatusColor(calculateProjectStatus(selectedProject)) }}
+                ></span>
+              </div>
+            )}
+            <div className="navbar-spacer"></div>
           </div>
-          {selectedProject && (
-            <div className="project-selector">
-              {selectedProject.name}
+          <div className="navbar-new-nav">
+            <div className="navbar-nav-links">
+              <Link to="/" className={`navbar-nav-link ${currentPage === 'Dashboard' ? 'active' : ''}`}>
+                <span className="nav-icon">◇</span>
+                Dashboard
+              </Link>
+              <Link to="/workbook" className={`navbar-nav-link ${currentPage === 'Workbook' ? 'active' : ''}`}>
+                <span className="nav-icon">▣</span>
+                Workbook
+              </Link>
+              <Link to="/milestones" className={`navbar-nav-link ${currentPage === 'Milestones' ? 'active' : ''}`}>
+                <span className="nav-icon">◈</span>
+                Milestones
+              </Link>
+              <Link to="/sprint-tracker" className={`navbar-nav-link ${currentPage === 'Sprint Tracker' ? 'active' : ''}`}>
+                <span className="nav-icon">▶</span>
+                Sprint Tracker
+              </Link>
+              <Link to="/projects" className={`navbar-nav-link ${currentPage === 'Projects' ? 'active' : ''}`}>
+                <span className="nav-icon">▣</span>
+                Projects
+              </Link>
             </div>
-          )}
+          </div>
         </nav>
         <Routes>
           <Route path="/" element={
-            <Dashboard
-              tasks={tasks}
+            <Dashboard 
+              tasks={tasks} 
               selectedProject={selectedProject}
             />
           } />
           <Route path="/workbook" element={
-            <Workbook
-              tasks={tasks}
+            <Workbook 
+              tasks={tasks} 
               selectedProject={selectedProject}
               phases={phases}
               fetchTasks={() => fetchTasks(selectedProject?.id)}
@@ -112,7 +225,7 @@ function App() {
             />
           } />
           <Route path="/projects" element={
-            <Projects
+            <Projects 
               projects={projects}
               selectedProject={selectedProject}
               onSelectProject={handleSelectProject}
@@ -121,13 +234,13 @@ function App() {
             />
           } />
           <Route path="/milestones" element={
-            <Milestones
+            <Milestones 
               selectedProject={selectedProject}
             />
           } />
           {/* 3. Add Sprint Tracker Routing */}
           <Route path="/sprint-tracker" element={
-            <SprintTrackerPage />
+            <SprintTracker />
           } />
         </Routes>
       </div>
