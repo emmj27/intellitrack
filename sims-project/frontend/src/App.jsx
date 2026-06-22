@@ -4,7 +4,7 @@ import Dashboard from './components/Dashboard';
 import Workbook from './components/Workbook';
 import Projects from './components/Projects';
 import Milestones from './components/Milestones';
-import SprintTracker from './components/SprintTracker'; // 1. Import Sprint Tracker
+import SprintTrackerPage from './components/SprintTrackerPage';
 import './App.css';
 
 function AppContent() {
@@ -208,42 +208,51 @@ function AppContent() {
             </div>
           </div>
         </nav>
-        <Routes>
-          <Route path="/" element={
-            <Dashboard 
-              tasks={tasks} 
-              selectedProject={selectedProject}
-            />
-          } />
-          <Route path="/workbook" element={
-            <Workbook 
-              tasks={tasks} 
-              selectedProject={selectedProject}
-              phases={phases}
-              fetchTasks={() => fetchTasks(selectedProject?.id)}
-              fetchPhases={() => fetchPhases(selectedProject?.id)}
-            />
-          } />
-          <Route path="/projects" element={
-            <Projects 
-              projects={projects}
-              selectedProject={selectedProject}
-              onSelectProject={handleSelectProject}
-              fetchProjects={fetchProjects}
-              onProjectCreated={handleProjectCreated}
-            />
-          } />
-          <Route path="/milestones" element={
-            <Milestones 
-              selectedProject={selectedProject}
-            />
-          } />
-          {/* 3. Add Sprint Tracker Routing */}
-          <Route path="/sprint-tracker" element={
-            <SprintTracker />
-          } />
-        </Routes>
-      </div>
+      )} {/* <-- FIXED: This closing bracket was deleted in the merge! */}
+
+      <Routes>
+        <Route path="/" element={
+          <Dashboard 
+            tasks={tasks} 
+            selectedProject={selectedProject}
+          />
+        } />
+        <Route path="/workbook" element={
+          <Workbook 
+            tasks={tasks} 
+            selectedProject={selectedProject}
+            phases={phases}
+            fetchTasks={() => fetchTasks(selectedProject?.id)}
+            fetchPhases={() => fetchPhases(selectedProject?.id)}
+          />
+        } />
+        <Route path="/projects" element={
+          <Projects 
+            projects={projects}
+            selectedProject={selectedProject}
+            onSelectProject={handleSelectProject}
+            fetchProjects={fetchProjects}
+            onProjectCreated={handleProjectCreated}
+          />
+        } />
+        <Route path="/milestones" element={
+          <Milestones 
+            selectedProject={selectedProject}
+          />
+        } />
+        <Route path="/sprint-tracker" element={
+          <SprintTrackerPage />
+        } />
+      </Routes>
+    </div>
+  );
+}
+
+// FIXED: Re-added the main App wrapper for the Router
+function App() {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 }
