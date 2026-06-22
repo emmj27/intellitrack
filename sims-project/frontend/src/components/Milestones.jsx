@@ -85,58 +85,52 @@ function Milestones({ selectedProject }) {
       ) : (
         <div className="tasks-table-container">
           <table className="tasks-table">
-            <thead>
-              <tr>
-                <th>Phase</th>
-                <th>Task ID</th>
-                <th>Task Name</th>
-                <th>Start Date</th>
-                <th>End Date</th>
-                <th>Predecessors</th>
-                <th>Duration</th>
-                <th>Owner</th>
-                <th>% Complete</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {milestones.map((task) => {
-                const phaseStyle = getPhaseStyle(task.phase_id);
-                return (
-                  <tr key={task.id}>
-                    <td>
-                      <span className="phase-button" style={phaseStyle}>
-                        {task.phase_name || 'Unknown Phase'}
-                      </span>
-                    </td>
-                    <td>{task.task_id}</td>
-                    <td>{task.task_name}</td>
-                    <td>{new Date(task.start_date).toLocaleDateString()}</td>
-                    <td>{new Date(task.end_date).toLocaleDateString()}</td>
-                    <td>{task.predecessors || '—'}</td>
-                    <td>{task.duration}</td>
-                    <td>{task.owner}</td>
-                    <td>
-                      <div className="progress-bar-cell">
-                        <div className="progress-bar-track">
-                          <div 
-                            className="progress-bar-fill" 
-                            style={{ width: `${task.percent_complete}%` }}
-                          ></div>
-                        </div>
-                        <span className="progress-bar-text">{task.percent_complete}%</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`status-badge status-${task.status.toLowerCase().replace(' ', '-')}`}>
-                        {task.status}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+  <thead>
+    <tr>
+      <th>Phase</th>
+      <th>Task ID</th>
+      <th>Task Name</th>
+      <th>Start Date</th>
+      <th>End Date</th>
+      <th>% Complete</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {milestones.map((task) => {
+      const phaseStyle = getPhaseStyle(task.phase_id);
+      return (
+        <tr key={task.id}>
+          <td>
+            <span className="phase-button" style={phaseStyle}>
+              {task.phase_name || 'Unknown Phase'}
+            </span>
+          </td>
+          <td>{task.task_id}</td>
+          <td>{task.task_name}</td>
+          <td>{new Date(task.start_date).toLocaleDateString()}</td>
+          <td>{new Date(task.end_date).toLocaleDateString()}</td>
+          <td>
+            <div className="progress-bar-cell">
+              <div className="progress-bar-track">
+                <div 
+                  className="progress-bar-fill" 
+                  style={{ width: `${task.percent_complete}%` }}
+                ></div>
+              </div>
+              <span className="progress-bar-text">{task.percent_complete}%</span>
+            </div>
+          </td>
+          <td>
+            <span className={`status-badge status-${task.status.toLowerCase().replace(' ', '-')}`}>
+              {task.status}
+            </span>
+          </td>
+        </tr>
+      );
+    })}
+  </tbody>
+</table>
         </div>
       )}
     </div>
