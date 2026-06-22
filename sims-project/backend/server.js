@@ -6,7 +6,108 @@ const app = express();
 const PORT = 5000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+
+// ============== DEVELOPERS API ==============
+
+// GET all developers
+app.get('/api/developers', (req, res) => {
+  db.all("SELECT * FROM developers ORDER BY name", (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    res.json(rows);
+  });
+});
+
+// GET single developer
+app.get('/api/developers/:id', (req, res) => {
+  const { id } = req.params;
+  db.get("SELECT * FROM developers WHERE id = ?", [id], (err, row) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (!row) {
+      res.status(404).json({ error: 'Developer not found' });
+      return;
+    }
+    res.json(row);
+  });
+});
+
+// POST new developer
+app.post('/api/developers', (req, res) => {
+  const { name, email, role, avatar } = req.body;
+  
+  console.log('📝 Adding developer:', { name, email, role, hasAvatar: !!avatar });
+  
+  if (!name) {
+    res.status(400).json({ error: 'Name is required' });
+    return;
+  }
+
+  db.run(`
+    INSERT INTO developers (name, email, role, avatar)
+    VALUES (?, ?, ?, ?)
+  `, [name, email || '', role || '', avatar || null], function(err) {
+    if (err) {
+      console.error('Error adding developer:', err);
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    
+    db.get("SELECT * FROM developers WHERE id = ?", [this.lastID], (err, row) => {
+      if (err) {
+        console.error('Error fetching new developer:', err);
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      console.log('✅ Developer added successfully:', row.name);
+      res.status(201).json(row);
+    });
+  });
+});
+
+// PUT update developer
+app.put('/api/developers/:id', (req, res) => {
+  const { id } = req.params;
+  const { name, email, role, avatar } = req.body;
+  
+  db.run(`
+    UPDATE developers 
+    SET name = ?, email = ?, role = ?, avatar = ?
+    WHERE id = ?
+  `, [name, email, role, avatar, id], function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (this.changes === 0) {
+      res.status(404).json({ error: 'Developer not found' });
+      return;
+    }
+    res.json({ message: 'Developer updated successfully' });
+  });
+});
+
+// DELETE developer
+app.delete('/api/developers/:id', (req, res) => {
+  const { id } = req.params;
+  
+  db.run("DELETE FROM developers WHERE id = ?", [id], function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (this.changes === 0) {
+      res.status(404).json({ error: 'Developer not found' });
+      return;
+    }
+    res.json({ message: 'Developer deleted successfully' });
+  });
+});
 
 // ============== PROJECTS API ==============
 
@@ -378,6 +479,10 @@ app.get('/api/dashboard/metrics', (req, res) => {
   });
 });
 
+// ============== START SERVER ==============
+
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📁 Database: sims.db`);
+  console.log(`📊 Database is empty - ready for data`);
 });

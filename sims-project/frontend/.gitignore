@@ -1,3 +1,6 @@
+#Dependencies
+node_modules/
+
 # Logs
 logs
 *.log
@@ -22,3 +25,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+
+#db
+*.db
