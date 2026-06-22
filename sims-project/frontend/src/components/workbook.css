@@ -158,8 +158,10 @@
 }
 
 .add-task-footer {
-  display: none;
-  }
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
 
 .form-grid {
   display: grid;
@@ -674,4 +676,14 @@
   .bottom-panel-content {
     padding: 1rem;
   }
+}
+
+.btn-filter-active {
+  background: #007aff;
+  color: white;
+  border-color: #007aff;
+}
+
+.btn-filter-active:hover {
+  background: #005fc9;
 }

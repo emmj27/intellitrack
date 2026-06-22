@@ -13,6 +13,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
   const [ownerFilter, setOwnerFilter] = useState([]);
   const [isOwnerFilterOpen, setIsOwnerFilterOpen] = useState(false);
   const ownerFilterRef = useRef(null);
+  const [isMilestoneMode, setIsMilestoneMode] = useState(false);
   const [formData, setFormData] = useState({
     project_id: selectedProject ? selectedProject.id : null,
     phase_id: null,
@@ -55,23 +56,12 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
 
   const phaseMatch = phase.name.match(/\[P(\d+)\]/);
   const phaseNumber = phaseMatch ? parseInt(phaseMatch[1]) : 1;
-  
+
   const phaseTasks = tasks.filter(t => t.phase_id === phaseId);
-  
-  // If no tasks, it's the first task (e.g., "1")
+
   if (phaseTasks.length === 0) return String(phaseNumber);
 
-  // Find the highest decimal currently in this phase
-  let maxSub = 0;
-  phaseTasks.forEach(t => {
-    const parts = t.task_id.split('.');
-    if (parts.length > 1) {
-      const sub = parseInt(parts[1]);
-      if (sub > maxSub) maxSub = sub;
-    }
-  });
-
-  return `${phaseNumber}.${maxSub + 1}`;
+  return `${phaseNumber}.${phaseTasks.length + 1}`;
 };
 
   useEffect(() => {
@@ -81,11 +71,41 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
     }
   }, [formData.phase_id, tasks, phases, editingTask]);
 
+ // Changing status enforces the matching percent:
   useEffect(() => {
-    if (formData.status === 'Complete') {
-      setFormData(prev => ({ ...prev, percent_complete: 100 }));
-    }
+    setFormData(prev => {
+      const { status, percent_complete } = prev;
+      if (status === 'Complete' && percent_complete !== 100) {
+        return { ...prev, percent_complete: 100 };
+      }
+      if (status === 'Not Started' && percent_complete !== 0) {
+        return { ...prev, percent_complete: 0 };
+      }
+      if ((status === 'On Hold' || status === 'In Progress') &&
+          (percent_complete === 0 || percent_complete === 100)) {
+        return { ...prev, percent_complete: percent_complete === 0 ? 1 : 99 };
+      }
+      return prev;
+    });
   }, [formData.status]);
+
+  useEffect(() => {
+    setFormData(prev => {
+      const { status, percent_complete } = prev;
+      if (status === 'Cancelled') return prev;
+      if (percent_complete === 100 && status !== 'Complete') {
+        return { ...prev, status: 'Complete' };
+      }
+      if (percent_complete === 0 && status !== 'Not Started') {
+        return { ...prev, status: 'Not Started' };
+      }
+      if (percent_complete > 0 && percent_complete < 100 &&
+          (status === 'Complete' || status === 'Not Started')) {
+        return { ...prev, status: 'In Progress' };
+      }
+      return prev;
+    });
+  }, [formData.percent_complete]);
 
   useEffect(() => {
     if (tasks.length > 0) {
@@ -111,21 +131,24 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
   }, [isAdding, lastPhaseId, editingTask]);
 
   const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    
-    if (name === 'phase_id' && value === 'create-new') {
-      setIsCreatingNewPhase(true);
-      setNewPhaseName('');
-      return;
-    }
-    
-    if (type === 'checkbox') {
-      setFormData(prev => ({ ...prev, [name]: checked ? 1 : 0 }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
-  };
+  const { name, value, type, checked } = e.target;
 
+  if (name === 'phase_id' && value === 'create-new') {
+    setIsCreatingNewPhase(true);
+    setNewPhaseName('');
+    return;
+  }
+
+  if (type === 'checkbox') {
+    setFormData(prev => ({ ...prev, [name]: checked ? 1 : 0 }));
+  } else if (name === 'phase_id') {
+    setFormData(prev => ({ ...prev, phase_id: value ? Number(value) : '' }));
+  } else if (name === 'percent_complete' || name === 'duration') {
+    setFormData(prev => ({ ...prev, [name]: value === '' ? '' : Number(value) }));
+  } else {
+    setFormData(prev => ({ ...prev, [name]: value }));
+  }
+};
   const resetForm = () => {
     setFormData({
       project_id: selectedProject ? selectedProject.id : null,
@@ -149,30 +172,61 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
   };
 
   const handleCreateNewPhase = async () => {
-    if (newPhaseName.trim() && selectedProject) {
-      try {
-        const response = await fetch('http://localhost:5000/api/phases', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            project_id: selectedProject.id,
-            name: newPhaseName.trim()
-          })
-        });
-        
-        if (response.ok) {
-          await fetchPhases();
-          const data = await response.json();
-          setLastPhaseId(data.id);
-          setFormData(prev => ({ ...prev, phase_id: data.id }));
-          setIsCreatingNewPhase(false);
-          setNewPhaseName('');
-        }
-      } catch (error) {
-        console.error('Error creating phase:', error);
+  if (newPhaseName.trim() && selectedProject) {
+    try {
+      const nextNumber = getNextPhaseNumber();
+      const fullPhaseName = `[P${nextNumber}] ${newPhaseName.trim()}`;
+
+      const response = await fetch('http://localhost:5000/api/phases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: selectedProject.id,
+          name: fullPhaseName
+        })
+      });
+
+      if (response.ok) {
+        await fetchPhases();
+        const data = await response.json();
+        setLastPhaseId(data.id);
+        setFormData(prev => ({ ...prev, phase_id: data.id }));
+        setIsCreatingNewPhase(false);
+        setNewPhaseName('');
       }
+    } catch (error) {
+      console.error('Error creating phase:', error);
     }
-  };
+  }
+};
+
+const handleDeletePhase = async (phaseId, phaseName) => {
+  const taskCount = tasks.filter(t => t.phase_id === phaseId).length;
+  const message = taskCount > 0
+    ? `"${phaseName}" has ${taskCount} task(s) assigned to it. Deleting it may orphan those tasks. Delete anyway?`
+    : `Delete phase "${phaseName}"?`;
+
+  if (window.confirm(message)) {
+    try {
+      const response = await fetch(`http://localhost:5000/api/phases/${phaseId}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        await fetchPhases();
+        if (formData.phase_id === phaseId) {
+          setFormData(prev => ({ ...prev, phase_id: null }));
+        }
+        if (lastPhaseId === phaseId) {
+          setLastPhaseId(null);
+        }
+      } else {
+        alert('Could not delete phase.');
+      }
+    } catch (error) {
+      console.error('Error deleting phase:', error);
+    }
+  }
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -348,7 +402,12 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
           <p className="project-context">{selectedProject.name}</p>
         </div>
         <div className="header-buttons">
-          <button className="btn-add" onClick={() => setIsAdding(true)}>+ Add New Task</button> {/* Moved here */}
+          <button
+          className={`btn-filter${isMilestoneMode ? ' btn-filter-active' : ''}`}
+          onClick={() => setIsMilestoneMode(!isMilestoneMode)}
+        >
+          {isMilestoneMode ? '✓ Done' : 'Milestone'}
+          </button>
           <div className="owner-filter-wrapper" ref={ownerFilterRef}></div>
           <div className="owner-filter-wrapper" ref={ownerFilterRef}>
             <button 
@@ -379,7 +438,9 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
             )}
           </div>
         </div>
+        
       </div>
+      
   
       {/* Add/Edit Task Bottom Panel */}
       {isAdding && (
@@ -515,12 +576,12 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
         </div>
       )}
 
-      {tasks.length === 0 ? (
+      {tasks.length === 0 && !isAdding ? (
         <div className="no-tasks-message">
           <p>No tasks yet for this project.</p>
           <p>Click <strong>"+ Add New Task"</strong> to get started!</p>
         </div>
-      ) : sortedTasks.length === 0 ? (
+      ) : sortedTasks.length === 0 && !isAdding ? (
         <div className="no-tasks-message">
           <p>No tasks match the selected owner filter.</p>
           <p><button className="btn-clear-filter" onClick={clearOwnerFilter}>Clear filter</button> to see all tasks.</p>
@@ -541,7 +602,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
                 <th>% Complete</th>
                 <th>Status</th>
                 <th>Actions</th>
-                <th>Milestone</th>
+                {isMilestoneMode && <th>Milestone</th>}
               </tr>
             </thead>
             <tbody>
@@ -581,6 +642,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
                       <button className="btn-edit" onClick={() => handleEdit(task)}>Edit</button>
                       <button className="btn-delete" onClick={() => handleDelete(task.id)}>Delete</button>
                     </td>
+                    {isMilestoneMode && (
                     <td>
                       <input 
                         type="checkbox" 
@@ -590,18 +652,35 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
                         title="Mark as Milestone"
                       />
                     </td>
+                    )}
                   </tr>
                 );
               })}
               {isAdding && (
   <tr className="new-task-row">
     {/* Phase Dropdown */}
-    {!isCreatingNewPhase ? (
-    <select name="phase_id" value={formData.phase_id || ''} onChange={handleInputChange}>
-      <option value="">Select Phase</option>
-      {phases.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-      <option value="create-new">+ Create New Phase</option>
-    </select>
+    <td>
+  {!isCreatingNewPhase ? (
+    <div className="phase-select-row">
+      <select name="phase_id" value={formData.phase_id || ''} onChange={handleInputChange}>
+        <option value="">Select Phase</option>
+        {phases.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        <option value="create-new">+ Create New Phase</option>
+      </select>
+      {formData.phase_id && (
+        <button
+          type="button"
+          className="phase-delete-x"
+          title="Delete this phase"
+          onClick={() => {
+            const phase = phases.find(p => p.id === formData.phase_id);
+            if (phase) handleDeletePhase(phase.id, phase.name);
+          }}
+        >
+          ×
+        </button>
+      )}
+    </div>
   ) : (
     <div className="new-phase-inline">
       <input 
@@ -617,7 +696,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
       </div>
     </div>
   )}
-    
+</td>
     {/* Auto-generated Task ID */}
     <td>{formData.task_id}</td>
     
@@ -659,8 +738,9 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
       <button className="btn-save" onClick={handleSubmit}>Save</button>
       <button className="btn-cancel" onClick={resetForm}>Cancel</button>
     </td>
-    
+    {isMilestoneMode && (
     <td><input type="checkbox" name="is_milestone" onChange={handleInputChange} /></td>
+    )}
   </tr>
 )}
             </tbody>
