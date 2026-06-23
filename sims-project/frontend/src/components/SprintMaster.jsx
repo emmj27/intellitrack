@@ -12,28 +12,23 @@ const SprintMaster = () => {
   const [phases, setPhases] = useState(['Initiation', '[P1] Prerequisites', 'Development', 'Testing']);
   const fibonacciPoints = [1, 2, 3, 5, 8, 13]; 
   
+  // Row Editing & Temporary State Logic
   const [editingRowId, setEditingRowId] = useState(null);
+  const [originalTaskData, setOriginalTaskData] = useState(null); 
   
-  // UI States
+  // UI & Modal States
   const tableContainerRef = useRef(null);
   const [assigneePopover, setAssigneePopover] = useState(null); 
-  const [deletePrompt, setDeletePrompt] = useState({ isOpen: false, taskId: null });
   const [floatingPrompt, setFloatingPrompt] = useState({ isOpen: false, type: '', taskId: null });
   const [promptValue, setPromptValue] = useState('');
+  
+  // Cleaned Custom Modals
+  const [alertModal, setAlertModal] = useState({ isOpen: false, title: '', message: '' });
+  const [deletePrompt, setDeletePrompt] = useState({ isOpen: false, taskId: null });
 
   // Filter States
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [filters, setFilters] = useState({
-    sprint: '',
-    taskName: '',
-    assignees: [], // Updated to an array for multiple tags
-    phase: '',
-    points: '',
-    priority: '',
-    status: ''
-  });
-
-  // Draggable Filter Panel Logic
+  const [filters, setFilters] = useState({ sprint: '', taskName: '', assignees: [], phase: '', points: '', priority: '', status: '' });
   const [filterPos, setFilterPos] = useState({ x: window.innerWidth - 350, y: 120 });
   const [isDragging, setIsDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
@@ -41,13 +36,9 @@ const SprintMaster = () => {
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (!isDragging) return;
-      setFilterPos({
-        x: e.clientX - dragOffset.current.x,
-        y: e.clientY - dragOffset.current.y
-      });
+      setFilterPos({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y });
     };
     const handleMouseUp = () => setIsDragging(false);
-
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
@@ -60,15 +51,10 @@ const SprintMaster = () => {
 
   const handleDragStart = (e) => {
     setIsDragging(true);
-    dragOffset.current = {
-      x: e.clientX - filterPos.x,
-      y: e.clientY - filterPos.y
-    };
+    dragOffset.current = { x: e.clientX - filterPos.x, y: e.clientY - filterPos.y };
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     try {
@@ -78,8 +64,6 @@ const SprintMaster = () => {
 
       const { data: taskData } = await supabase.from('tasks').select('*').order('id', { ascending: true });
       if (taskData) {
-        
-        // Dynamically extract unique Sprints and Phases from the DB
         const uniqueSprints = [...new Set(taskData.map(t => t.sprint).filter(Boolean))];
         setSprints(prev => Array.from(new Set([...prev, ...uniqueSprints])));
         
@@ -87,64 +71,39 @@ const SprintMaster = () => {
         setPhases(prev => Array.from(new Set([...prev, ...uniquePhases])));
 
         setTasks(taskData.map(t => ({
-          id: t.id,
-          sprint: t.sprint || '',
-          taskName: t.task_name || '',
-          assignees: t.assignees || [],
-          phase: t.phase || '',
-          storyPoints: t.story_points || 1, 
-          priority: t.priority || 'Medium',
-          status: t.status || 'To Do',
-          notes: t.notes || ''
+          id: t.id, sprint: t.sprint || '', taskName: t.task_name || '', assignees: t.assignees || [], 
+          phase: t.phase || '', storyPoints: t.story_points || 1, priority: t.priority || 'Medium', 
+          status: t.status || 'To Do', notes: t.notes || ''
         })));
       }
-    } catch (error) {
-      console.error("Error fetching data:", error.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { console.error("Error fetching data:", error.message); } 
+    finally { setLoading(false); }
   };
 
-  const handleTaskChange = (id, field, value) => {
-    setTasks(tasks.map(task => task.id === id ? { ...task, [field]: value } : task));
-  };
-
-  // Filter Logic
+  const handleTaskChange = (id, field, value) => setTasks(tasks.map(task => task.id === id ? { ...task, [field]: value } : task));
   const handleFilterChange = (field, value) => setFilters({ ...filters, [field]: value });
   
   const toggleFilterAssignee = (devName) => {
-    const newAssignees = filters.assignees.includes(devName)
-      ? filters.assignees.filter(name => name !== devName)
-      : [...filters.assignees, devName];
+    const newAssignees = filters.assignees.includes(devName) ? filters.assignees.filter(name => name !== devName) : [...filters.assignees, devName];
     setFilters({ ...filters, assignees: newAssignees });
   };
 
-  const clearFilters = () => {
-    setFilters({ sprint: '', taskName: '', assignees: [], phase: '', points: '', priority: '', status: '' });
-  };
+  const clearFilters = () => setFilters({ sprint: '', taskName: '', assignees: [], phase: '', points: '', priority: '', status: '' });
 
   const filteredTasks = tasks.filter(task => {
-    if (editingRowId === task.id) return true; // Keep edited row visible
+    if (editingRowId === task.id) return true; 
     if (filters.sprint && task.sprint !== filters.sprint) return false;
     if (filters.taskName && !task.taskName.toLowerCase().includes(filters.taskName.toLowerCase())) return false;
     if (filters.phase && task.phase !== filters.phase) return false;
     if (filters.points && task.storyPoints !== parseInt(filters.points)) return false;
     if (filters.priority && task.priority !== filters.priority) return false;
     if (filters.status && task.status !== filters.status) return false;
-    
-    // Assignee Multi-Tag Filter (Check if task has ANY of the selected filter assignees)
-    if (filters.assignees.length > 0) {
-      const hasMatch = filters.assignees.some(a => task.assignees.includes(a));
-      if (!hasMatch) return false;
-    }
-    
+    if (filters.assignees.length > 0 && !filters.assignees.some(a => task.assignees.includes(a))) return false;
     return true;
   });
 
   const handleAssigneeToggle = (id, devName, currentAssignees) => {
-    const newAssignees = currentAssignees.includes(devName)
-      ? currentAssignees.filter(name => name !== devName)
-      : [...currentAssignees, devName];
+    const newAssignees = currentAssignees.includes(devName) ? currentAssignees.filter(name => name !== devName) : [...currentAssignees, devName];
     handleTaskChange(id, 'assignees', newAssignees);
   };
 
@@ -174,26 +133,75 @@ const SprintMaster = () => {
     setFloatingPrompt({ isOpen: false, type: '', taskId: null });
   };
 
-  const addNewTaskRow = async () => {
-    const newTaskData = { sprint: sprints[0] || '', task_name: '', assignees: [], phase: phases[0] || '', story_points: 1, priority: 'Medium', status: 'To Do', notes: '' };
+  const addNewTaskRow = () => {
+    const tempId = `temp_${Date.now()}`;
+    const newTaskData = { 
+      id: tempId, isNew: true, sprint: sprints[0] || '', taskName: '', assignees: [], 
+      phase: phases[0] || '', storyPoints: 1, priority: 'Medium', status: 'To Do', notes: '' 
+    };
+    
+    setTasks([...tasks, newTaskData]);
+    setEditingRowId(tempId);
+    setOriginalTaskData(null);
+    
+    setTimeout(() => {
+      if (tableContainerRef.current) tableContainerRef.current.scrollTo({ top: tableContainerRef.current.scrollHeight, behavior: 'smooth' });
+    }, 100);
+  };
+
+  const startEditingRow = (task) => {
+    setOriginalTaskData({ ...task });
+    setEditingRowId(task.id);
+  };
+
+  const cancelEditingRow = (id) => {
+    const task = tasks.find(t => t.id === id);
+    if (task.isNew) {
+      setTasks(tasks.filter(t => t.id !== id));
+    } else {
+      setTasks(tasks.map(t => t.id === id ? originalTaskData : t));
+    }
+    setEditingRowId(null);
+    setOriginalTaskData(null);
+  };
+
+  const saveRow = async (id) => {
+    const taskToUpdate = tasks.find(t => t.id === id);
+    
+    if (!taskToUpdate.sprint || !taskToUpdate.taskName.trim() || !taskToUpdate.phase || !taskToUpdate.priority || !taskToUpdate.status) {
+      setAlertModal({ isOpen: true, title: 'Missing Required Fields', message: 'Please fill out all required fields: Sprint, Task Name, Phase, Priority, and Status.' });
+      return; 
+    }
+
+    const dbPayload = { 
+      sprint: taskToUpdate.sprint, task_name: taskToUpdate.taskName, assignees: taskToUpdate.assignees, 
+      phase: taskToUpdate.phase, story_points: taskToUpdate.storyPoints, priority: taskToUpdate.priority, 
+      status: taskToUpdate.status, notes: taskToUpdate.notes 
+    };
+
     try {
-      const { data, error } = await supabase.from('tasks').insert([newTaskData]).select(); 
-      if (error) throw error;
-      if (data && data.length > 0) {
-        const newDbTask = data[0];
-        const formattedTask = { 
-          id: newDbTask.id, sprint: newDbTask.sprint || '', taskName: newDbTask.task_name || '', assignees: newDbTask.assignees || [], phase: newDbTask.phase || '', storyPoints: newDbTask.story_points || 1, priority: newDbTask.priority || 'Medium', status: newDbTask.status || 'To Do', notes: newDbTask.notes || '' 
-        };
-        setTasks([...tasks, formattedTask]);
-        setEditingRowId(formattedTask.id);
+      if (taskToUpdate.isNew) {
+        const { data, error } = await supabase.from('tasks').insert([dbPayload]).select();
+        if (error) throw error;
         
-        setTimeout(() => {
-          if (tableContainerRef.current) {
-            tableContainerRef.current.scrollTo({ top: tableContainerRef.current.scrollHeight, behavior: 'smooth' });
-          }
-        }, 100);
+        if (data && data.length > 0) {
+          const newDbTask = data[0];
+          setTasks(tasks.map(t => t.id === id ? { 
+            id: newDbTask.id, sprint: newDbTask.sprint || '', taskName: newDbTask.task_name || '', 
+            assignees: newDbTask.assignees || [], phase: newDbTask.phase || '', storyPoints: newDbTask.story_points || 1, 
+            priority: newDbTask.priority || 'Medium', status: newDbTask.status || 'To Do', notes: newDbTask.notes || '' 
+          } : t));
+        }
+      } else {
+        const { error } = await supabase.from('tasks').update(dbPayload).eq('id', id);
+        if (error) throw error;
       }
-    } catch (error) { console.error("Error adding:", error.message); }
+      setEditingRowId(null); 
+      setOriginalTaskData(null);
+    } catch (error) { 
+      console.error("Error updating:", error.message); 
+      setAlertModal({ isOpen: true, title: 'Database Error', message: error.message });
+    }
   };
 
   const confirmDeleteTask = async () => {
@@ -203,23 +211,9 @@ const SprintMaster = () => {
       setTasks(tasks.filter(task => task.id !== deletePrompt.taskId));
       if (editingRowId === deletePrompt.taskId) setEditingRowId(null);
       setDeletePrompt({ isOpen: false, taskId: null });
-    } catch (error) { console.error("Error deleting:", error.message); }
-  };
-
-  const toggleEditRow = async (id) => {
-    if (editingRowId === id) {
-      const taskToUpdate = tasks.find(t => t.id === id);
-      if (!taskToUpdate.sprint || !taskToUpdate.taskName.trim() || !taskToUpdate.phase || !taskToUpdate.priority || !taskToUpdate.status) {
-        alert("Cannot save: Please fill out all required fields (Sprint, Task Name, Phase, Priority, Status).");
-        return; 
-      }
-      try {
-        const { error } = await supabase.from('tasks').update({ sprint: taskToUpdate.sprint, task_name: taskToUpdate.taskName, assignees: taskToUpdate.assignees, phase: taskToUpdate.phase, story_points: taskToUpdate.storyPoints, priority: taskToUpdate.priority, status: taskToUpdate.status, notes: taskToUpdate.notes }).eq('id', id);
-        if (error) throw error;
-        setEditingRowId(null); 
-      } catch (error) { console.error("Error updating:", error.message); }
-    } else {
-      setEditingRowId(id); 
+    } catch (error) { 
+      console.error("Error deleting:", error.message); 
+      setAlertModal({ isOpen: true, title: 'Error Deleting Task', message: error.message });
     }
   };
 
@@ -230,24 +224,41 @@ const SprintMaster = () => {
   return (
     <div className="sprint-tracker-view">
       
-      {floatingPrompt.isOpen && (
-        <div className="floating-prompt-panel ios-card">
-          <h4>Add New {floatingPrompt.type === 'sprint' ? 'Sprint' : 'Phase'}</h4>
-          <input type="text" autoFocus className="ios-table-input" placeholder={`Enter ${floatingPrompt.type} name...`} value={promptValue} onChange={(e) => setPromptValue(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submitFloatingPrompt()} />
-          <div className="floating-prompt-actions">
-            <button className="ios-button-secondary" onClick={() => setFloatingPrompt({ isOpen: false, type: '', taskId: null })}>Cancel</button>
-            <button className="btn-gradient" onClick={submitFloatingPrompt}>Add</button>
+      {/* 1. Validation Error Custom Modal */}
+      {alertModal.isOpen && (
+        <div className="modal-overlay-centered">
+          <div className="alert-modal-card">
+            <h4 style={{ color: '#1c1c1e', margin: '0 0 12px 0', fontSize: '1.2rem' }}>{alertModal.title}</h4>
+            <p style={{ fontSize: '0.9rem', color: '#666', margin: '0 0 24px 0', lineHeight: '1.5' }}>{alertModal.message}</p>
+            <div className="modal-buttons-row">
+              <button className="btn-gradient" onClick={() => setAlertModal({ isOpen: false, title: '', message: '' })}>Got it</button>
+            </div>
           </div>
         </div>
       )}
 
+      {/* 2. Delete Confirmation Custom Modal */}
       {deletePrompt.isOpen && (
-        <div className="floating-prompt-panel ios-card" style={{ borderTop: '4px solid #ff3b30' }}>
-          <h4>Delete Task</h4>
-          <p style={{ fontSize: '0.85rem', color: '#666', textAlign: 'center', marginBottom: '16px' }}>Are you sure? This action cannot be undone.</p>
+        <div className="modal-overlay-centered">
+          <div className="alert-modal-card" style={{ borderTop: '4px solid #ff3b30' }}>
+            <h4 style={{ color: '#1c1c1e', margin: '0 0 12px 0', fontSize: '1.2rem' }}>Delete Task</h4>
+            <p style={{ fontSize: '0.9rem', color: '#666', margin: '0 0 24px 0', lineHeight: '1.5' }}>Are you sure? This action cannot be undone.</p>
+            <div className="modal-buttons-row">
+              <button className="ios-button-secondary" onClick={() => setDeletePrompt({ isOpen: false, taskId: null })}>Cancel</button>
+              <button className="btn-gradient" style={{ background: 'linear-gradient(135deg, #ff3b30 0%, #ff2d55 100%)' }} onClick={confirmDeleteTask}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Add Sprint/Phase Prompt */}
+      {floatingPrompt.isOpen && (
+        <div className="floating-prompt-panel">
+          <h4 style={{ margin: '0 0 12px 0', fontSize: '1.1rem', textAlign: 'center' }}>Add New {floatingPrompt.type === 'sprint' ? 'Sprint' : 'Phase'}</h4>
+          <input type="text" autoFocus className="ios-table-input" placeholder={`Enter ${floatingPrompt.type} name...`} value={promptValue} onChange={(e) => setPromptValue(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submitFloatingPrompt()} />
           <div className="floating-prompt-actions">
-            <button className="ios-button-secondary" onClick={() => setDeletePrompt({ isOpen: false, taskId: null })}>Cancel</button>
-            <button className="ios-button" style={{ background: '#ff3b30', border: 'none', color: 'white', padding: '0.75rem', borderRadius: '12px' }} onClick={confirmDeleteTask}>Delete</button>
+            <button className="ios-button-secondary" onClick={() => setFloatingPrompt({ isOpen: false, type: '', taskId: null })}>Cancel</button>
+            <button className="btn-gradient" onClick={submitFloatingPrompt}>Add</button>
           </div>
         </div>
       )}
@@ -297,11 +308,7 @@ const SprintMaster = () => {
                   <label>Assignee(s)</label>
                   <div className="assignee-tags-container">
                     {developers.map(dev => (
-                      <span 
-                        key={dev} 
-                        className={`assignee-tag ${filters.assignees.includes(dev) ? 'selected' : ''}`}
-                        onClick={() => toggleFilterAssignee(dev)}
-                      >
+                      <span key={dev} className={`assignee-tag ${filters.assignees.includes(dev) ? 'selected' : ''}`} onClick={() => toggleFilterAssignee(dev)}>
                         {dev}
                       </span>
                     ))}
@@ -353,7 +360,8 @@ const SprintMaster = () => {
               <th style={{ width: '110px', textAlign: 'center' }}>Priority</th>
               <th style={{ width: '120px', textAlign: 'center' }}>Status</th>
               <th>Notes</th>
-              <th style={{ width: '140px', textAlign: 'center' }}>Actions</th>
+              {/* FIXED: Min-width strictly applied so action buttons never get cut off */}
+              <th style={{ width: '180px', minWidth: '180px', textAlign: 'center' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -457,10 +465,17 @@ const SprintMaster = () => {
 
                     <td style={{ textAlign: 'center' }}>
                       <div className="action-button-group">
-                        <button onClick={() => toggleEditRow(task.id)} className={`action-btn ${isEditing ? 'btn-save' : 'btn-edit'}`}>
-                          {isEditing ? 'Save' : 'Edit'}
-                        </button>
-                        <button onClick={() => triggerDeleteTask(task.id)} className="action-btn btn-delete">Delete</button>
+                        {isEditing ? (
+                           <>
+                             <button onClick={() => saveRow(task.id)} className="action-btn btn-save">Save</button>
+                             <button onClick={() => cancelEditingRow(task.id)} className="action-btn btn-cancel-edit">Cancel</button>
+                           </>
+                        ) : (
+                           <>
+                             <button onClick={() => startEditingRow(task)} className="action-btn btn-edit">Edit</button>
+                             <button onClick={() => setDeletePrompt({ isOpen: true, taskId: task.id })} className="action-btn btn-delete">Delete</button>
+                           </>
+                        )}
                       </div>
                     </td>
                   </tr>
