@@ -193,9 +193,14 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
         setFormData(prev => ({ ...prev, phase_id: data.id }));
         setIsCreatingNewPhase(false);
         setNewPhaseName('');
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to create phase:', response.status, errorText);
+        alert(`Couldn't create phase (HTTP ${response.status}). Check the console for details.`);
       }
     } catch (error) {
       console.error('Error creating phase:', error);
+      alert('Couldn\'t reach the server. Is your backend running on localhost:5000?');
     }
   }
 };
@@ -691,9 +696,9 @@ const handleDeletePhase = async (phaseId, phaseName) => {
         autoFocus
       />
       <div className="new-phase-actions">
-        <button type="button" className="btn-save" onClick={handleCreateNewPhase}>✓</button>
-        <button type="button" className="btn-cancel" onClick={() => setIsCreatingNewPhase(false)}>✕</button>
-      </div>
+  <button type="button" className="btn-save" onClick={handleCreateNewPhase}>✓</button>
+  <button type="button" className="btn-cancel" onClick={() => setIsCreatingNewPhase(false)}>✕</button>
+</div>
     </div>
   )}
 </td>
