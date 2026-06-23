@@ -1,14 +1,13 @@
 /* =========================================
-   1. CORE LAYOUT & MASTER CARD CONTAINER
+   1. MASTER LAYOUT & CONTAINERS
    ========================================= */
 .sprint-tracker-view {
   padding: 2rem;
-  max-width: 1600px; /* Expanded so tables have much more room */
+  max-width: 1600px;
   width: 98%;
   margin: 0 auto;
 }
 
-/* --- The New "Bigger Card" Wrapper --- */
 .master-wrapper-card {
   background: #ffffff;
   border-radius: 24px;
@@ -25,34 +24,30 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
-  gap: 16px;
 }
 
 .tracker-title {
   font-size: 1.5rem;
   font-weight: 600;
   color: #1c1c1e;
+  margin: 0;
 }
 
-/* Flat, sleek outline for inner table cards */
-.tracker-card {
-  padding: 0;
-  overflow: hidden;
-  background: transparent; 
-  border: 1px solid rgba(60, 60, 67, 0.08); /* Sleek subtle outline */
-  border-radius: 16px;
-  width: 100%;
+.tracker-actions-wrapper {
+  display: flex;
+  gap: 12px;
+  position: relative;
 }
 
-/* --- Redesigned Segmented Control Tabs --- */
+/* =========================================
+   2. TABS
+   ========================================= */
 .tracker-tabs {
-  display: inline-flex;
+  display: flex;
   gap: 24px;
-  margin-bottom: 32px; /* Extra breathing room below tabs */
-  border-bottom: 1px solid rgba(60, 60, 67, 0.08); /* Sleek bottom track line */
-  background: transparent; 
+  margin-bottom: 32px;
+  border-bottom: 1px solid rgba(60, 60, 67, 0.08);
   padding: 0;
-  width: 100%;
 }
 
 .tab-btn {
@@ -67,8 +62,9 @@
   transition: color 0.25s ease;
 }
 
-.tab-btn:hover { color: #1c1c1e; }
-.tab-btn.active { color: #1c1c1e; }
+.tab-btn:hover, .tab-btn.active {
+  color: #1c1c1e;
+}
 
 .tab-btn.active::after {
   content: '';
@@ -79,100 +75,112 @@
   height: 3px;
   background: linear-gradient(90deg, #007aff, #50bcf2);
   border-radius: 3px 3px 0 0;
-  animation: slideInLine 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes slideInLine {
-  from { transform: scaleX(0.5); opacity: 0; }
-  to { transform: scaleX(1); opacity: 1; }
 }
 
 /* =========================================
-   2. TABLE & SCROLL ARCHITECTURE
+   3. TABLE ARCHITECTURE
    ========================================= */
+.tracker-card {
+  border: 1px solid rgba(60, 60, 67, 0.08);
+  border-radius: 16px;
+  width: 100%;
+  overflow: hidden;
+}
+
 .scrollable-table-container {
   max-height: calc(100vh - 300px);
-  overflow-y: auto;
-  overflow-x: auto;
+  overflow: auto;
   width: 100%;
 }
 
-.table-responsive {
-  overflow-x: auto;
+.sprint-tracker-view .ios-table {
   width: 100%;
-  -webkit-overflow-scrolling: touch;
-}
-
-.ios-table.tracker-table {
-  width: 100%;
-  min-width: 1200px; 
+  min-width: 1200px;
   border-collapse: collapse;
-  overflow: visible !important; 
+  table-layout: auto;
 }
 
-.ios-table.tracker-table th {
+.sprint-tracker-view .ios-table th {
   position: sticky;
   top: 0;
-  z-index: 20; 
+  z-index: 20;
   background: #f8f8fa;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); 
   border-bottom: 1px solid rgba(60, 60, 67, 0.1);
+  padding: 12px 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #8e8e93;
+  text-transform: uppercase;
 }
 
-/* =========================================
-   3. ROW, TEXT & INPUT STYLING
-   ========================================= */
+.sprint-tracker-view .ios-table td {
+  padding: 12px 8px;
+  border-bottom: 1px solid rgba(60, 60, 67, 0.05);
+  vertical-align: middle;
+}
+
 .row-editing {
-  background: linear-gradient(90deg, rgba(0, 122, 255, 0.04) 0%, rgba(0, 122, 255, 0.01) 100%) !important;
-  box-shadow: inset 4px 0 0 #007aff; 
+  background: linear-gradient(90deg, rgba(0, 122, 255, 0.04) 0%, rgba(0, 122, 255, 0.01) 100%);
+  box-shadow: inset 4px 0 0 #007aff;
 }
 
 .static-cell-text {
   font-size: 0.9rem;
   color: #1c1c1e;
-  display: inline-block;
-  padding: 4px 0;
-  white-space: pre-wrap; 
-  word-wrap: break-word; 
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
 .font-semibold { font-weight: 500; }
 .notes-text { color: #8e8e93; font-size: 0.85rem; }
 
-.ios-table-input,
-.ios-table-select {
+/* Forces buttons to never squish or cut off */
+.action-button-group {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: nowrap;
+}
+
+.action-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: filter 0.15s ease;
+}
+
+.action-btn:hover { filter: brightness(0.95); }
+.btn-edit { background: rgba(0, 122, 255, 0.1); color: #007aff; }
+.btn-save { background: #34c759; color: white; }
+.btn-delete { background: rgba(255, 59, 48, 0.1); color: #ff3b30; }
+.btn-cancel-edit { background: #e5e5ea; color: #1c1c1e; }
+
+/* =========================================
+   4. FORM ELEMENTS
+   ========================================= */
+.ios-table-input, .ios-table-select, .ios-table-textarea {
   width: 100%;
   padding: 0.5rem 0.75rem;
   border: 1px solid rgba(60, 60, 67, 0.15);
   border-radius: 8px;
-  background-color: #ffffff;
   font-size: 0.85rem;
   font-family: inherit;
-  color: #1c1c1e;
   box-sizing: border-box;
   transition: all 0.15s ease;
 }
 
 .ios-table-textarea {
-  width: 100%;
   min-height: 38px;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid rgba(60, 60, 67, 0.15);
-  border-radius: 8px;
-  background-color: #ffffff;
-  font-size: 0.85rem;
-  font-family: inherit;
-  color: #1c1c1e;
-  box-sizing: border-box;
-  resize: none; 
-  overflow: hidden; 
-  line-height: 1.4;
-  transition: border-color 0.15s ease;
+  resize: none;
+  overflow: hidden;
 }
 
-.ios-table-input:focus,
-.ios-table-select:focus,
-.ios-table-textarea:focus {
+.ios-table-input:focus, .ios-table-select:focus, .ios-table-textarea:focus {
   outline: none;
   border-color: #007aff;
   box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
@@ -180,7 +188,7 @@
 
 .input-error {
   border-color: #ff3b30 !important;
-  background-color: rgba(255, 59, 48, 0.05) !important;
+  background: rgba(255, 59, 48, 0.05) !important;
 }
 
 .add-new-option-item {
@@ -190,7 +198,7 @@
 }
 
 /* =========================================
-   4. INTERACTIVE ASSIGNEE TAGS & POPOVER
+   5. ASSIGNEE TAGS
    ========================================= */
 .assignee-tags-container {
   display: flex;
@@ -200,7 +208,6 @@
 }
 
 .assignee-tag {
-  display: inline-block;
   background: #f2f2f7;
   color: #1c1c1e;
   padding: 4px 10px;
@@ -208,40 +215,26 @@
   font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
-  border: 1px solid transparent;
-  transition: all 0.2s ease;
   user-select: none;
+  transition: all 0.2s ease;
 }
 
 .assignee-tag.selected { background: #007aff; color: #ffffff; }
 .assignee-tag.view-only { cursor: default; background: rgba(0, 122, 255, 0.08); color: #007aff; }
-.assignee-tag.more-tag { cursor: pointer; background: #e5e5ea; color: #8e8e93; }
-.assignee-tag.more-tag:hover { background: #d1d1d6; }
+.assignee-tag.more-tag { background: #e5e5ea; color: #8e8e93; }
 
 .assignee-popover {
   position: absolute;
-  bottom: 100%; 
+  bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
-  width: 220px;
+  width: 200px;
   background: #ffffff;
   border-radius: 12px;
   padding: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.05);
-  z-index: 999 !important;
-  margin-bottom: 12px; 
-  animation: popoverFadeInUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.assignee-popover::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border-width: 6px;
-  border-style: solid;
-  border-color: #ffffff transparent transparent transparent;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  z-index: 999;
+  margin-bottom: 8px;
 }
 
 .popover-header {
@@ -260,27 +253,55 @@
   background: none;
   border: none;
   font-size: 1.2rem;
-  line-height: 1;
   color: #8e8e93;
   cursor: pointer;
 }
 
-@keyframes popoverFadeInUp {
-  from { opacity: 0; transform: translate(-50%, 8px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+/* =========================================
+   6. GLOBAL BUTTONS & BADGES
+   ========================================= */
+.btn-gradient {
+  background: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.25);
+  transition: transform 0.15s ease;
 }
 
-/* =========================================
-   5. BADGES & BUTTONS
-   ========================================= */
+.btn-gradient:hover { transform: translateY(-1px); }
+
+.ios-button-secondary {
+  background: rgba(142, 142, 147, 0.12);
+  color: #1c1c1e;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ios-button-secondary:hover { background: rgba(142, 142, 147, 0.2); }
+
 .ios-badge {
-  display: inline-block;
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 600;
-  text-align: center;
   text-transform: capitalize;
+}
+
+.badge-count {
+  background: #f2f2f7;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.8rem;
 }
 
 .priority-critical { background: rgba(255, 59, 48, 0.12); color: #ff3b30; }
@@ -293,99 +314,61 @@
 .status-blocked { background: rgba(255, 59, 48, 0.12); color: #ff3b30; }
 .status-to-do { background: rgba(142, 142, 147, 0.12); color: #1c1c1e; }
 
-.badge-count {
-  background: #f2f2f7;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 0.8rem;
-}
-
-.action-button-group {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
-
-.action-btn {
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  cursor: pointer;
-  border: none;
-  transition: all 0.15s ease;
-}
-
-.btn-edit { background-color: rgba(0, 122, 255, 0.1); color: #007aff; }
-.btn-edit:hover { background-color: rgba(0, 122, 255, 0.2); }
-.btn-save { background-color: #34c759; color: white; }
-.btn-save:hover { background-color: #28a745; }
-.btn-delete { background-color: rgba(255, 59, 48, 0.1); color: #ff3b30; }
-.btn-delete:hover { background-color: rgba(255, 59, 48, 0.2); }
-
-.btn-gradient {
-  background: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.25);
-}
-
-.btn-gradient:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(0, 122, 255, 0.35);
-}
-
-.ios-button-secondary {
-  background: rgba(142, 142, 147, 0.12);
-  color: #1c1c1e;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.ios-button-secondary:hover { background: rgba(142, 142, 147, 0.2); }
-
 /* =========================================
-   6. DRAGGABLE FILTER & MODALS
+   7. ISOLATED MODALS & OVERLAYS
    ========================================= */
+/* The dark background overlay */
+.modal-overlay-centered {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999999;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* The actual white box inside the overlay */
+.alert-modal-card {
+  width: 340px;
+  padding: 24px;
+  background: #ffffff;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  animation: modalScaleIn 0.2s ease-out forwards;
+}
+
+@keyframes modalScaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Forces buttons inside modals to be exactly equal size */
+.modal-buttons-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+.modal-buttons-row button {
+  flex: 1;
+}
+
+/* The non-blurring floating prompt at the top of the screen */
 .floating-prompt-panel {
   position: fixed;
-  top: 80px; 
+  top: 80px;
   left: 50%;
   transform: translateX(-50%);
   width: 320px;
   padding: 20px;
-  background: rgba(255, 255, 255, 0.85); 
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(25px);
-  -webkit-backdrop-filter: blur(25px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.05);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
   border-radius: 16px;
-  z-index: 1000; 
-  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translate(-50%, -20px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
-}
-
-.floating-prompt-panel h4 {
-  margin: 0 0 12px 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #1c1c1e;
-  text-align: center;
+  z-index: 9999;
 }
 
 .floating-prompt-actions {
@@ -393,17 +376,17 @@
   gap: 10px;
   margin-top: 16px;
 }
+.floating-prompt-actions button {
+  flex: 1;
+}
 
-.floating-prompt-actions button { flex: 1; padding: 8px; }
-
-/* Filter Panel Updates */
+/* Draggable Filter Panel */
 .filter-panel {
   position: fixed;
   width: 320px;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(25px);
-  -webkit-backdrop-filter: blur(25px);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.05);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
   border-radius: 16px;
   z-index: 999;
   border-top: 4px solid #007aff;
@@ -412,40 +395,17 @@
 .filter-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
   padding: 16px 20px;
   cursor: grab;
-  border-bottom: 1px solid rgba(60, 60, 67, 0.1);
   background: rgba(0, 122, 255, 0.02);
-  border-radius: 12px 12px 0 0;
+  border-bottom: 1px solid rgba(60, 60, 67, 0.1);
 }
 
-.filter-header:active { cursor: grabbing; }
-
-.filter-header h4 {
-  margin: 0;
-  font-size: 1.1rem;
-  color: #1c1c1e;
-  pointer-events: none; 
-}
-
-.filter-clear-btn {
-  background: none;
-  border: none;
-  color: #007aff;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.filter-clear-btn:hover { text-decoration: underline; }
-
-.filter-body {
-  padding: 20px;
-}
+.filter-header h4 { margin: 0; font-size: 1.1rem; pointer-events: none; }
+.filter-clear-btn { background: none; border: none; color: #007aff; font-weight: 500; cursor: pointer; }
+.filter-body { padding: 20px; }
 
 .filter-group { margin-bottom: 12px; }
-
 .filter-group label {
   display: block;
   font-size: 0.75rem;
@@ -455,21 +415,14 @@
   text-transform: uppercase;
 }
 
-.tracker-actions-wrapper {
-  position: relative;
-  display: flex;
-  gap: 12px;
-}
-
 /* =========================================
-   7. METRICS CARDS (Overview & View Tabs)
+   8. METRICS OVERVIEW CARDS
    ========================================= */
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
-  width: 100%;
 }
 
 .metric-card {
@@ -477,7 +430,6 @@
   border-radius: 16px;
   padding: 16px;
   text-align: center;
-  box-shadow: none;
   border: 1px solid rgba(60, 60, 67, 0.08);
 }
 
@@ -487,14 +439,12 @@
   font-weight: 600;
   color: #8e8e93;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .metric-card .metric-value {
   margin: 0;
   font-size: 2rem;
   font-weight: 700;
-  color: #1c1c1e;
 }
 
 .metric-card.done .metric-value { color: #34c759; }
@@ -503,7 +453,6 @@
 .metric-card.primary .metric-value { color: #007aff; }
 
 .sprint-selector-container {
-  background: transparent;
   padding: 16px 0;
   margin-bottom: 24px;
   display: flex;
@@ -512,33 +461,15 @@
 }
 
 .sprint-selector-container h3 { margin: 0; font-size: 1rem; color: #1c1c1e; }
-.sprint-selector-container select { flex: 1; font-size: 1rem; padding: 8px; max-width: 400px; }
-
-@media (max-width: 768px) {
-  .sprint-tracker-view { padding: 1rem; width: 100%; }
-  .master-wrapper-card { padding: 16px; }
-  .tracker-header-row { flex-direction: column; align-items: flex-start; }
-  .ios-button, .btn-gradient { width: 100%; text-align: center; }
-  .tracker-tabs { flex-direction: column; gap: 8px; }
-  .filter-panel { width: 90vw; left: 5vw !important; top: 10vh !important; }
-}
+.sprint-selector-container select { flex: 1; max-width: 400px; }
 
 /* =========================================
-   10. GLOBAL TABLE STRETCH FIX
+   9. MOBILE RESPONSIVENESS
    ========================================= */
-/* Forces all tables inside the Sprint Tracker to maximize card width */
-.sprint-tracker-view .ios-table {
-  width: 100%;
-  table-layout: auto;
-}
-
-/* Ensure the wrapper cards in Overview and View tabs stretch fully */
-.sprint-tracker-view .ios-card {
-  width: 100%;
-  box-sizing: border-box;
-}
-
-/* Optional: Give the task name/sprint columns a bit more priority on stretch */
-.sprint-tracker-view .ios-table th:nth-child(2) {
-  min-width: 250px;
+@media (max-width: 768px) {
+  .tracker-header-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .tracker-actions-wrapper { width: 100%; flex-direction: column; }
+  .tracker-actions-wrapper button { width: 100%; }
+  .filter-panel { left: 5% !important; top: 10% !important; width: 90%; }
+  .tracker-tabs { flex-direction: column; gap: 8px; }
 }
