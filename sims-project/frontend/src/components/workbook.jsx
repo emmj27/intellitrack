@@ -16,7 +16,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
   const [isMilestoneMode, setIsMilestoneMode] = useState(false);
   const [isPhaseManagerOpen, setIsPhaseManagerOpen] = useState(false);
   const [formError, setFormError] = useState('');
-  
+  const [taskToDelete, setTaskToDelete] = useState(null);
   const [formData, setFormData] = useState({
     project_id: selectedProject ? selectedProject.id : null,
     phase_id: null,
@@ -128,6 +128,24 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
       setNewPhaseName('');
       return;
     }
+    if (name === 'start_date') {
+  setFormData(prev => ({
+    ...prev,
+    start_date: value,
+    end_date: prev.end_date && value && prev.end_date < value ? '' : prev.end_date
+  }));
+  return;
+}
+
+if (name === 'end_date') {
+  if (formData.start_date && value && value < formData.start_date) {
+    alert("End date can't be earlier than the start date.");
+    return;
+  }
+  setFormData(prev => ({ ...prev, end_date: value }));
+  return;
+}
+
     if (type === 'checkbox') setFormData(prev => ({ ...prev, [name]: checked ? 1 : 0 }));
     else if (name === 'phase_id') setFormData(prev => ({ ...prev, phase_id: value ? Number(value) : '' }));
     else if (name === 'percent_complete' || name === 'duration') setFormData(prev => ({ ...prev, [name]: value === '' ? '' : Number(value) }));
@@ -184,6 +202,11 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (formData.start_date && formData.end_date && formData.end_date < formData.start_date) {
+  alert("End date can't be earlier than the start date.");
+  return;
+}
+
     setFormError('');
     if (!validatePredecessors(formData.predecessors)) {
       setFormError("Validation Error: Predecessor task is not 'Complete' or does not exist.");
@@ -234,14 +257,22 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
     } catch (error) { alert(`Error updating milestone: ${error.message}`); }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
-      try {
-        const { error } = await supabase.from('workbook').delete().eq('id', id);
-        if (!error) await fetchTasks();
-      } catch (error) { alert(`Error deleting task: ${error.message}`); }
-    }
-  };
+  const handleDelete = (id) => {
+  setTaskToDelete(id);
+};
+
+const confirmDeleteTask = async () => {
+  if (!taskToDelete) return;
+  try {
+    const { error } = await supabase.from('workbook').delete().eq('id', taskToDelete);
+    if (error) throw error;
+    await fetchTasks();
+  } catch (error) {
+    alert(`Error deleting task: ${error.message}`);
+  } finally {
+    setTaskToDelete(null);
+  }
+};
 
   const handleEdit = (task) => {
     setEditingRowId(task.id);
@@ -409,7 +440,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
                         <td><input type="text" name="task_id" value={formData.task_id} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '60px'}} disabled={task.id !== 'new'} /></td>
                         <td><input type="text" name="task_name" value={formData.task_name} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '120px'}} required /></td>
                         <td><input type="date" name="start_date" value={formData.start_date} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '110px'}} /></td>
-                        <td><input type="date" name="end_date" value={formData.end_date} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '110px'}} /></td>
+                        <td><input type="date" name="end_date" value={formData.end_date} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '110px'}} min={formData.start_date || undefined} /></td>
                         <td><input type="text" name="predecessors" value={formData.predecessors} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '60px'}} /></td>
                         <td><input type="number" name="duration" value={formData.duration} onChange={handleInputChange} min="1" style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '60px'}} /></td>
                         <td>
@@ -471,6 +502,17 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
       )}
 
       <div className="add-task-footer"><button className="btn-add" onClick={() => { resetForm(); setEditingRowId('new'); }}>+ Add New Task</button></div>
+      {taskToDelete && (
+  <div className="confirm-modal-overlay" onClick={() => setTaskToDelete(null)}>
+    <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+      <p>Are you sure you want to delete this task?</p>
+      <div className="confirm-modal-actions">
+        <button className="btn-cancel" onClick={() => setTaskToDelete(null)}>Cancel</button>
+        <button className="btn-delete-confirm" onClick={confirmDeleteTask}>Delete</button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
