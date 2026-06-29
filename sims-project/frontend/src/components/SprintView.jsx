@@ -8,11 +8,7 @@ const SprintView = ({ selectedProject }) => {
   const [availableSprints, setAvailableSprints] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (selectedProject) fetchTasks();
-  }, [selectedProject]);
-
-  const fetchTasks = async () => {
+  async function fetchTasks() {
     try {
       const { data, error } = await supabase.from('tasks').select('*').eq('project_id', selectedProject.id);
       if (error) throw error;
@@ -23,7 +19,11 @@ const SprintView = ({ selectedProject }) => {
       if (sprints.length > 0) setSelectedSprint(sprints[0]);
     } catch (error) { console.error("Error fetching tasks:", error.message); } 
     finally { setLoading(false); }
-  };
+  }
+
+  useEffect(() => {
+    if (selectedProject) fetchTasks();
+  }, [selectedProject]);
 
   const filteredTasks = tasks.filter(t => t.sprint === selectedSprint);
   const totalTasks = filteredTasks.length;
@@ -36,6 +36,15 @@ const SprintView = ({ selectedProject }) => {
   const velocity = filteredTasks.filter(t => t.status === 'Done').reduce((sum, t) => sum + (t.story_points || 0), 0);
 
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading Sprint Data...</div>;
+
+  if (availableSprints.length === 0) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', color: '#8e8e93' }}>
+        <h3>No Sprints Found</h3>
+        <p>No sprints found for this project. Go to the <strong>Sprint Master</strong> tab to create tasks and assign them to a sprint.</p>
+      </div>
+    );
+  }
 
   return (
     <div>

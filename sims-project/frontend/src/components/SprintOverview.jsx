@@ -6,18 +6,18 @@ const SprintOverview = ({ selectedProject }) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (selectedProject) fetchTasks();
-  }, [selectedProject]);
-
-  const fetchTasks = async () => {
+  async function fetchTasks() {
     try {
       const { data, error } = await supabase.from('tasks').select('*').eq('project_id', selectedProject.id);
       if (error) throw error;
       setTasks(data || []);
     } catch (error) { console.error("Error fetching tasks:", error.message); } 
     finally { setLoading(false); }
-  };
+  }
+
+  useEffect(() => {
+    if (selectedProject) fetchTasks();
+  }, [selectedProject]);
 
   const totalTasks = tasks.length;
   const totalDone = tasks.filter(t => t.status === 'Done').length;

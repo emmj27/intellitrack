@@ -49,9 +49,7 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
     dragOffset.current = { x: e.clientX - filterPos.x, y: e.clientY - filterPos.y };
   };
 
-  useEffect(() => { if (selectedProject) fetchData(); }, [selectedProject]);
-
-  const fetchData = async () => {
+  async function fetchData() {
     try {
       setLoading(true);
       const { data: devData } = await supabase.from('developers').select('*');
@@ -61,7 +59,8 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
       const { data: taskData } = await supabase.from('tasks').select('*').eq('project_id', selectedProject.id).order('id', { ascending: true });
       if (taskData) {
         const uniqueSprints = [...new Set(taskData.map(t => t.sprint).filter(Boolean))];
-        setSprints(prev => Array.from(new Set([...prev, ...uniqueSprints])));
+        const defaultSprints = ['[S1] Design and Requirements', '[S2] Adjustment and Onboarding'];
+        setSprints(Array.from(new Set([...defaultSprints, ...uniqueSprints])));
 
         setTasks(taskData.map(t => ({
           id: t.id, sprint: t.sprint || '', taskName: t.task_name || '', assignees: t.assignees || [], 
@@ -71,7 +70,9 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
       }
     } catch (error) { console.error("Error fetching data:", error.message); } 
     finally { setLoading(false); }
-  };
+  }
+
+  useEffect(() => { if (selectedProject) fetchData(); }, [selectedProject]);
 
   const handleTaskChange = (id, field, value) => setTasks(tasks.map(task => task.id === id ? { ...task, [field]: value } : task));
   const handleFilterChange = (field, value) => setFilters({ ...filters, [field]: value });
@@ -136,7 +137,8 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
     const confirmed = await showConfirm("Delete this phase? Tasks using it might lose their phase mapping.");
     if (confirmed) {
       try {
-        await supabase.from('phases').delete().eq('id', phaseId);
+        const { error } = await supabase.from('phases').delete().eq('id', phaseId);
+        if (error) throw error;
         await fetchPhases();
       } catch (err) { showAlert(`Error deleting phase: ${err.message}`); }
     }
@@ -173,7 +175,7 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
   const saveRow = async (id) => {
     const taskToUpdate = tasks.find(t => t.id === id);
     if (!taskToUpdate.sprint || !taskToUpdate.taskName.trim() || !taskToUpdate.phase || !taskToUpdate.priority || !taskToUpdate.status) {
-      setAlertModal({ isOpen: true, title: 'Missing Required Fields', message: 'Please fill out all required fields: Sprint, Task Name, Phase, Priority, and Status.' });
+      showAlert('Please fill out all required fields: Sprint, Task Name, Phase, Priority, and Status.');
       return; 
     }
 

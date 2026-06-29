@@ -1,0 +1,101 @@
+/* CreateAcc.css */
+
+/* Reuses general auth classes from Login.css. Below are styles specific to Create Account page */
+
+.auth-validation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 0 4px;
+}
+
+.auth-validation-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #8e8e93;
+  transition: color 0.25s ease;
+}
+
+.auth-validation-icon {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 0.6rem;
+  font-weight: bold;
+  color: transparent;
+  transition: all 0.25s ease;
+}
+
+/* Valid requirement state */
+.auth-validation-item.valid {
+  color: #30d158;
+}
+
+.auth-validation-item.valid .auth-validation-icon {
+  border-color: #30d158;
+  background-color: rgba(48, 209, 88, 0.15);
+  color: #30d158;
+}
+
+/* Invalid state when user has started typing but criteria not met yet */
+.auth-validation-item.invalid {
+  color: #ff453a;
+}
+
+.auth-validation-item.invalid .auth-validation-icon {
+  border-color: #ff453a;
+  background-color: rgba(255, 69, 58, 0.1);
+  color: #ff453a;
+}
+
+/* Registration success screen design */
+.auth-success-card {
+  animation: authFadeIn 0.5s ease-out;
+}
+
+.auth-success-icon {
+  font-size: 3.5rem;
+  color: #30d158;
+  margin-bottom: 20px;
+  animation: authScaleUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes authScaleUp {
+  from { transform: scale(0.6); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes authFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.auth-success-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: #ffffff;
+}
+
+.auth-success-message {
+  font-size: 0.95rem;
+  color: #a1a1aa;
+  line-height: 1.6;
+  margin-bottom: 28px;
+}
+
+.auth-success-email {
+  font-weight: bold;
+  color: #007aff;
+  background: rgba(0, 122, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 6px;
+  word-break: break-all;
+}
