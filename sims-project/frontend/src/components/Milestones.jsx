@@ -5,15 +5,10 @@ import './Milestones.css';
 
 function Milestones({ selectedProject }) {
   const [milestones, setMilestones] = useState([]);
+  const [phases, setPhases] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (selectedProject) {
-      fetchMilestones();
-    }
-  }, [selectedProject]);
-
-  const fetchMilestones = async () => {
+  async function fetchMilestones() {
     if (!selectedProject) return;
     setLoading(true);
     try {
@@ -27,6 +22,7 @@ function Milestones({ selectedProject }) {
       if (error) throw error;
       
       const phasesData = await fetchPhasesByProject(selectedProject.id);
+      setPhases(phasesData);
       
       const formattedData = milestonesData.map(task => {
         const phase = phasesData.find(p => p.id === task.phase_id);
@@ -42,9 +38,21 @@ function Milestones({ selectedProject }) {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    if (selectedProject) {
+      fetchMilestones();
+    }
+  }, [selectedProject]);;
 
   const getPhaseStyle = (phaseId) => {
+    const phase = phases.find(p => p.id === phaseId);
+    if (!phase) return { bg: 'rgba(142, 142, 147, 0.12)', color: '#8e8e93' };
+
+    const phaseMatch = phase.name.match(/\[P(\d+)\]/);
+    const phaseNumber = phaseMatch ? parseInt(phaseMatch[1]) : phase.id;
+
     const palette = [
       { bg: 'rgba(0, 122, 255, 0.12)',   color: '#007aff' },
       { bg: 'rgba(52, 199, 89, 0.12)',   color: '#34c759' },
@@ -55,7 +63,7 @@ function Milestones({ selectedProject }) {
       { bg: 'rgba(48, 176, 192, 0.12)',  color: '#30b0c0' },
       { bg: 'rgba(175, 82, 222, 0.12)',  color: '#af52de' },
     ];
-    const index = (phaseId - 1) % palette.length;
+    const index = (phaseNumber - 1) % palette.length;
     return palette[index >= 0 ? index : 0];
   };
 

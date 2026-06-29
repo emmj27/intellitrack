@@ -5,17 +5,7 @@ function Dashboard({ tasks, selectedProject, projectPhases }) {
   const [metrics, setMetrics] = useState(null);
   const [phases, setPhases] = useState([]);
 
-  useEffect(() => {
-    if (tasks.length > 0) {
-      calculateMetrics();
-      calculatePhases();
-    } else {
-      setMetrics(null);
-      setPhases([]);
-    }
-  }, [tasks]);
-
-  const calculateMetrics = () => {
+  function calculateMetrics() {
     const totalTasks = tasks.length;
     const completeTasks = tasks.filter(t => t.status === 'Complete').length;
     const inProgressTasks = tasks.filter(t => t.status === 'In Progress').length;
@@ -77,9 +67,9 @@ function Dashboard({ tasks, selectedProject, projectPhases }) {
       completionRate: completionRate,
       overdueTasks: tasks.filter(t => new Date(t.end_date) < today && t.status !== 'Complete').length
     });
-  };
+  }
 
-  const calculatePhases = () => {
+  function calculatePhases() {
     const phaseMap = {};
     
     tasks.forEach(task => {
@@ -128,7 +118,17 @@ function Dashboard({ tasks, selectedProject, projectPhases }) {
     }));
     
     setPhases(phasesArray);
-  };
+  }
+
+  useEffect(() => {
+    if (tasks.length > 0) {
+      calculateMetrics();
+      calculatePhases();
+    } else {
+      setMetrics(null);
+      setPhases([]);
+    }
+  }, [tasks]);
 
   const getPhaseColor = (phaseName, index) => {
     const colors = ['#007aff', '#5856d6', '#ff2d55', '#ff9500', '#34c759', '#30b0c0', '#af52de'];
