@@ -86,3 +86,29 @@ export const deleteDeveloper = async (id) => {
   if (error) throw error;
   return true;
 };
+
+// Sprints
+export const fetchSprintsByProject = async (projectId) => {
+  const userId = await getCurrentUserId();
+  let query = supabase.from('sprints').select('*').eq('project_id', projectId);
+  if (userId) query = query.eq('user_id', userId);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+};
+
+export const createSprint = async (sprintData) => {
+  const userId = await getCurrentUserId();
+  const insertData = userId ? { ...sprintData, user_id: userId } : sprintData;
+
+  const { data, error } = await supabase.from('sprints').insert([insertData]).select();
+  if (error) throw error;
+  return data ? data[0] : null;
+};
+
+export const deleteSprint = async (id) => {
+  const { error } = await supabase.from('sprints').delete().eq('id', id);
+  if (error) throw error;
+  return true;
+};

@@ -9,7 +9,7 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
   const [developers, setDevelopers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [sprints, setSprints] = useState(['[S1] Design and Requirements', '[S2] Adjustment and Onboarding']);
+  const [sprints, setSprints] = useState([]);
   const fibonacciPoints = [1, 2, 3, 5, 8, 13]; 
   
   const [editingRowId, setEditingRowId] = useState(null);
@@ -21,6 +21,9 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
   const [promptValue, setPromptValue] = useState('');
   
   const [isPhaseManagerOpen, setIsPhaseManagerOpen] = useState(false);
+  const [isSprintManagerOpen, setIsSprintManagerOpen] = useState(false);
+  const [newSprintName, setNewSprintName] = useState('');
+  const [newPhaseName, setNewPhaseName] = useState('');
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filters, setFilters] = useState({ sprint: '', taskName: '', assignees: [], phase: '', points: '', priority: '', status: '' });
@@ -55,13 +58,14 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
       const { data: devData } = await supabase.from('developers').select('*');
       if (devData) setDevelopers(devData.map(dev => dev.name));
 
+      const { data: sprintData } = await supabase.from('sprints').select('*').eq('project_id', selectedProject.id).order('created_at', { ascending: true });
+      if (sprintData) {
+        setSprints(sprintData);
+      }
+
       // ONLY fetch from `tasks` table
       const { data: taskData } = await supabase.from('tasks').select('*').eq('project_id', selectedProject.id).order('id', { ascending: true });
       if (taskData) {
-        const uniqueSprints = [...new Set(taskData.map(t => t.sprint).filter(Boolean))];
-        const defaultSprints = ['[S1] Design and Requirements', '[S2] Adjustment and Onboarding'];
-        setSprints(Array.from(new Set([...defaultSprints, ...uniqueSprints])));
-
         setTasks(taskData.map(t => ({
           id: t.id, sprint: t.sprint || '', taskName: t.task_name || '', assignees: t.assignees || [], 
           phase: t.phase || '', storyPoints: t.story_points || 1, priority: t.priority || 'Medium', 
@@ -117,20 +121,51 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
 
   const submitFloatingPrompt = async () => {
     if (!promptValue.trim()) return; 
-    if (floatingPrompt.type === 'sprint') {
-      setSprints(prev => [...prev, promptValue]);
-      handleTaskChange(floatingPrompt.taskId, 'sprint', promptValue);
-    } else if (floatingPrompt.type === 'phase') {
-      try {
-        const { data, error } = await supabase.from('phases').insert([{ project_id: selectedProject.id, name: promptValue }]).select();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const payload = { project_id: selectedProject.id, name: promptValue, ...(user ? { user_id: user.id } : {}) };
+
+      if (floatingPrompt.type === 'sprint') {
+        const { data, error } = await supabase.from('sprints').insert([payload]).select();
+        if (error) throw error;
+        if (data && data.length > 0) {
+          fetchData();
+          handleTaskChange(floatingPrompt.taskId, 'sprint', data[0].name);
+        }
+      } else if (floatingPrompt.type === 'phase') {
+        const { data, error } = await supabase.from('phases').insert([payload]).select();
         if (error) throw error;
         if (data && data.length > 0) {
           await fetchPhases();
           handleTaskChange(floatingPrompt.taskId, 'phase', data[0].name);
         }
-      } catch (err) { showAlert(`Error creating phase: ${err.message}`); }
-    }
+      }
+    } catch (err) { showAlert(`Error creating ${floatingPrompt.type}: ${err.message}`); }
     setFloatingPrompt({ isOpen: false, type: '', taskId: null });
+  };
+
+  const handleCreateNewPhase = async () => {
+    if (!newPhaseName.trim()) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const payload = { project_id: selectedProject.id, name: newPhaseName, ...(user ? { user_id: user.id } : {}) };
+      const { error } = await supabase.from('phases').insert([payload]);
+      if (error) throw error;
+      setNewPhaseName('');
+      await fetchPhases();
+    } catch (err) { showAlert(`Error creating phase: ${err.message}`); }
+  };
+
+  const handleCreateNewSprint = async () => {
+    if (!newSprintName.trim()) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const payload = { project_id: selectedProject.id, name: newSprintName, ...(user ? { user_id: user.id } : {}) };
+      const { error } = await supabase.from('sprints').insert([payload]);
+      if (error) throw error;
+      setNewSprintName('');
+      fetchData();
+    } catch (err) { showAlert(`Error creating sprint: ${err.message}`); }
   };
 
   const handleDeletePhase = async (phaseId) => {
@@ -144,10 +179,21 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
     }
   };
 
+  const handleDeleteSprint = async (sprintId) => {
+    const confirmed = await showConfirm("Delete this sprint? It won't appear in the dropdown anymore.");
+    if (confirmed) {
+      try {
+        const { error } = await supabase.from('sprints').delete().eq('id', sprintId);
+        if (error) throw error;
+        fetchData();
+      } catch (err) { showAlert(`Error deleting sprint: ${err.message}`); }
+    }
+  };
+
   const addNewTaskRow = () => {
     const tempId = `temp_${Date.now()}`;
     const newTaskData = { 
-      id: tempId, isNew: true, sprint: sprints[0] || '', taskName: '', assignees: [], 
+      id: tempId, isNew: true, sprint: sprints.length > 0 ? sprints[0].name : '', taskName: '', assignees: [], 
       phase: phases && phases.length > 0 ? phases[0].name : '', storyPoints: 1, priority: 'Medium', status: 'To Do', notes: '' 
     };
     setTasks([...tasks, newTaskData]);
@@ -235,6 +281,10 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
         <div style={overlayStyle}>
           <div className="alert-modal-card" style={{ width: '400px', background: '#fff', padding: '24px', borderRadius: '16px', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
             <h4 style={{ color: '#1c1c1e', margin: '0 0 16px 0', fontSize: '1.2rem', textAlign: 'center' }}>Manage Phases</h4>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <input type="text" value={newPhaseName} onChange={(e) => setNewPhaseName(e.target.value)} placeholder="Enter new phase name..." className="ios-table-input" style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid #ccc' }} onKeyDown={(e) => e.key === 'Enter' && handleCreateNewPhase()} />
+              <button onClick={handleCreateNewPhase} disabled={!newPhaseName.trim()} style={{ padding: '8px 16px', background: '#007aff', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', opacity: newPhaseName.trim() ? 1 : 0.5 }}>Add</button>
+            </div>
             <div style={{ maxHeight: '250px', overflowY: 'auto', textAlign: 'left', marginBottom: '16px' }}>
               {(!phases || phases.length === 0) && <p style={{color: '#8e8e93', textAlign: 'center'}}>No phases yet.</p>}
               {phases && phases.map(p => (
@@ -249,7 +299,30 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
         </div>
       )}
 
-      {/* ADD PHASE PROMPT */}
+      {/* MANAGE SPRINTS MODAL */}
+      {isSprintManagerOpen && (
+        <div style={overlayStyle}>
+          <div className="alert-modal-card" style={{ width: '400px', background: '#fff', padding: '24px', borderRadius: '16px', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+            <h4 style={{ color: '#1c1c1e', margin: '0 0 16px 0', fontSize: '1.2rem', textAlign: 'center' }}>Manage Sprints</h4>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <input type="text" value={newSprintName} onChange={(e) => setNewSprintName(e.target.value)} placeholder="Enter new sprint name..." className="ios-table-input" style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid #ccc' }} onKeyDown={(e) => e.key === 'Enter' && handleCreateNewSprint()} />
+              <button onClick={handleCreateNewSprint} disabled={!newSprintName.trim()} style={{ padding: '8px 16px', background: '#007aff', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', opacity: newSprintName.trim() ? 1 : 0.5 }}>Add</button>
+            </div>
+            <div style={{ maxHeight: '250px', overflowY: 'auto', textAlign: 'left', marginBottom: '16px' }}>
+              {(!sprints || sprints.length === 0) && <p style={{color: '#8e8e93', textAlign: 'center'}}>No sprints yet.</p>}
+              {sprints && sprints.map(s => (
+                <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 8px', borderBottom: '1px solid #eee' }}>
+                  <span style={{ fontSize: '0.9rem', color: '#1c1c1e' }}>{s.name}</span>
+                  <button onClick={() => handleDeleteSprint(s.id)} style={{ color: '#ff3b30', border: 'none', background: 'none', cursor: 'pointer', fontWeight: 'bold' }}>✕ Delete</button>
+                </div>
+              ))}
+            </div>
+            <button style={{width: '100%', background: 'linear-gradient(135deg, #007aff 0%, #5856d6 100%)', color: 'white', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '12px', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer'}} onClick={() => setIsSprintManagerOpen(false)}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* ADD PHASE/SPRINT PROMPT */}
       {floatingPrompt.isOpen && (
         <div style={overlayStyle}>
           <div style={{ width: '320px', padding: '24px', background: '#fff', borderRadius: '16px', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
@@ -266,6 +339,7 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
       <div className="tracker-header-row">
         <h2 className="tracker-title">Sprint Master</h2>
         <div className="tracker-actions-wrapper">
+          <button onClick={() => setIsSprintManagerOpen(true)} className="ios-button-secondary">Manage Sprints</button>
           <button onClick={() => setIsPhaseManagerOpen(true)} className="ios-button-secondary">Manage Phases</button>
           <button onClick={() => setIsFilterOpen(!isFilterOpen)} className="ios-button-secondary">Filters {activeFilterCount > 0 && `(${activeFilterCount})`}</button>
           <button onClick={addNewTaskRow} className="btn-gradient">+ Add Task</button>
@@ -278,7 +352,7 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
               </div>
               <div className="filter-body">
                 <div className="filter-group"><label>Task Name</label><input type="text" className="ios-table-input" placeholder="Search text..." value={filters.taskName} onChange={(e) => handleFilterChange('taskName', e.target.value)} /></div>
-                <div className="filter-group"><label>Sprint</label><select className="ios-table-select" value={filters.sprint} onChange={(e) => handleFilterChange('sprint', e.target.value)}><option value="">All Sprints</option>{sprints.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+                <div className="filter-group"><label>Sprint</label><select className="ios-table-select" value={filters.sprint} onChange={(e) => handleFilterChange('sprint', e.target.value)}><option value="">All Sprints</option>{sprints.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}</select></div>
                 <div className="filter-group"><label>Phase</label><select className="ios-table-select" value={filters.phase} onChange={(e) => handleFilterChange('phase', e.target.value)}><option value="">All Phases</option>{phases && phases.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}</select></div>
                 <div className="filter-group"><label>Assignee(s)</label><div className="assignee-tags-container">{developers.map(dev => <span key={dev} className={`assignee-tag ${filters.assignees.includes(dev) ? 'selected' : ''}`} onClick={() => toggleFilterAssignee(dev)}>{dev}</span>)}</div></div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -309,7 +383,7 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
                 return (
                   <tr key={task.id} className={isEditing ? "row-editing" : ""}>
                     <td style={{ textAlign: 'center', fontWeight: '500', color: '#8e8e93' }}>{index + 1}</td>
-                    <td>{isEditing ? <select value={task.sprint} onChange={(e) => handleSprintSelectChange(task.id, e.target.value)} className="ios-table-select"><option value="" disabled>Select Sprint</option>{sprints.map(s => <option key={s} value={s}>{s}</option>)}<option value="ADD_NEW_OPTION" className="add-new-option-item">+ Add New Sprint...</option></select> : <span className="static-cell-text">{task.sprint}</span>}</td>
+                    <td>{isEditing ? <select value={task.sprint} onChange={(e) => handleSprintSelectChange(task.id, e.target.value)} className="ios-table-select"><option value="" disabled>Select Sprint</option>{sprints.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}<option value="ADD_NEW_OPTION" className="add-new-option-item">+ Add New Sprint...</option></select> : <span className="static-cell-text">{task.sprint}</span>}</td>
                     <td>{isEditing ? <textarea rows={1} placeholder="Required" value={task.taskName} onChange={(e) => handleTaskChange(task.id, 'taskName', e.target.value)} onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = `${e.target.scrollHeight}px`; }} className={`ios-table-textarea ${!task.taskName ? 'input-error' : ''}`} /> : <span className="static-cell-text font-semibold">{task.taskName || '—'}</span>}</td>
                     <td style={{ position: 'relative' }}>
                       {isEditing ? (
