@@ -1,5 +1,5 @@
 .user-settings-modal {
-  max-width: 400px;
+  max-width: 440px;
   width: 100%;
 }
 
@@ -7,11 +7,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .modal-header h3 {
   margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #1c1c1e;
 }
 
 .close-btn {
@@ -20,6 +23,12 @@
   font-size: 1.2rem;
   cursor: pointer;
   color: #8e8e93;
+  transition: color 0.2s ease;
+  padding: 4px;
+}
+
+.close-btn:hover {
+  color: #1c1c1e;
 }
 
 .settings-section {
@@ -38,20 +47,140 @@
   margin-top: 0;
   margin-bottom: 15px;
   color: #1c1c1e;
-  font-size: 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  align-items: center;
 }
 
 .info-label {
   font-weight: 500;
   color: #3a3a3c;
+  font-size: 0.95rem;
 }
 
 .info-value {
   color: #1c1c1e;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.user-id-value {
+  font-size: 0.8rem;
+  color: #8e8e93;
+  font-family: monospace;
+  background: #f2f2f7;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Form Styles enhancements */
+.settings-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.settings-input {
+  width: 100%;
+  padding: 10px 40px 10px 12px;
+  border: 1px solid #d1d1d6;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.settings-input:focus {
+  outline: none;
+  border-color: #007aff;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+}
+
+.settings-password-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #8e8e93;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.settings-password-toggle:hover {
+  color: #1c1c1e;
+}
+
+/* Validation List Styles */
+.settings-validation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 0 4px;
+}
+
+.settings-validation-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #8e8e93;
+  transition: color 0.25s ease;
+}
+
+.settings-validation-icon {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  border: 1px solid #d1d1d6;
+  font-size: 0.6rem;
+  font-weight: bold;
+  color: transparent;
+  transition: all 0.25s ease;
+}
+
+/* Valid requirement state */
+.settings-validation-item.valid {
+  color: #34c759;
+}
+
+.settings-validation-item.valid .settings-validation-icon {
+  border-color: #34c759;
+  background-color: rgba(52, 199, 89, 0.15);
+  color: #34c759;
+}
+
+/* Invalid state */
+.settings-validation-item.invalid {
+  color: #ff3b30;
+}
+
+.settings-validation-item.invalid .settings-validation-icon {
+  border-color: #ff3b30;
+  background-color: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
+}
+
+.btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
