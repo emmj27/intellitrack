@@ -268,21 +268,22 @@
   vertical-align: middle;
 }
 
-.tasks-table th:nth-child(1)  { width: 12%; }
-.tasks-table th:nth-child(2)  { width: 6%; }
-.tasks-table th:nth-child(3)  { width: 18%; }
-.tasks-table th:nth-child(4)  { width: 9%; }
-.tasks-table th:nth-child(5)  { width: 9%; }
-.tasks-table th:nth-child(6)  { width: 9%; }
-.tasks-table th:nth-child(7)  { width: 6%; }
-.tasks-table th:nth-child(8)  { width: 8%; }
-.tasks-table th:nth-child(9)  { width: 9%; }
-.tasks-table th:nth-child(10) { width: 7%; }
-.tasks-table th:nth-child(11) { width: 5%; }
-.tasks-table th:nth-child(12) { width: 5%; }
+.col-milestone    { width: 4%; text-align: center; }
+.col-phase        { width: 12%; }
+.col-task-id      { width: 6%; }
+.col-task-name    { width: 18%; }
+.col-start-date   { width: 9%; }
+.col-end-date     { width: 9%; }
+.col-predecessors { width: 9%; }
+.col-duration     { width: 6%; }
+.col-owner        { width: 8%; }
+.col-percent      { width: 9%; }
+.col-status       { width: 7%; }
+.col-notes        { width: 5%; }
+.col-actions      { width: 5%; }
 
-.tasks-table td:nth-child(4),
-.tasks-table td:nth-child(5) {
+.col-start-date,
+.col-end-date {
   white-space: nowrap;
 }
 
@@ -372,35 +373,33 @@
 }
 
 .tasks-table th.actions-header,
-.tasks-table td.actions {
+.col-actions {
   text-align: center;
 }
 
-.actions {
-  display: flex !important;
-  flex-direction: row !important;
-  gap: 0.5rem !important;
-  align-items: center !important;
-  justify-content: center !important;
-  vertical-align: middle;
+.actions-wrapper {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-edit,
 .btn-save,
 .btn-cancel,
 .btn-delete {
-  padding: 0.4rem 0.8rem !important;
-  font-size: 0.8rem !important;
-  white-space: nowrap !important;
-  border: none !important;
-  border-radius: 6px !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   cursor: pointer !important;
-  font-weight: 500 !important;
+  border: none !important;
   transition: all 0.2s ease !important;
   margin: 0 !important;
   outline: none !important;
-  width: auto !important;
-  max-width: none !important;
 }
 
 .btn-edit {
@@ -410,17 +409,17 @@
 
 .btn-edit:hover {
   background: rgba(0, 122, 255, 0.2) !important;
-  transform: scale(0.98) !important;
+  transform: scale(1.08) !important;
 }
 
 .btn-save {
-  background: #007aff !important;
+  background: #34c759 !important;
   color: white !important;
 }
 
 .btn-save:hover {
-  background: #005fc9 !important;
-  transform: scale(0.98) !important;
+  background: #28a745 !important;
+  transform: scale(1.08) !important;
 }
 
 .btn-cancel {
@@ -430,7 +429,7 @@
 
 .btn-cancel:hover {
   background: #e5e5ea !important;
-  transform: scale(0.98) !important;
+  transform: scale(1.08) !important;
 }
 
 .btn-delete {
@@ -440,7 +439,7 @@
 
 .btn-delete:hover {
   background: rgba(255, 59, 48, 0.2) !important;
-  transform: scale(0.98) !important;
+  transform: scale(1.08) !important;
 }
 
 .create-new-option {
@@ -579,10 +578,19 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .btn-filter:hover {
   background: rgba(0, 122, 255, 0.08);
+}
+
+.btn-icon {
+  flex-shrink: 0;
+  stroke: currentColor;
 }
 
 .owner-filter-dropdown {
@@ -659,16 +667,44 @@
   .workbook-header {
     flex-direction: column;
     text-align: center;
+    gap: 1.25rem;
+  }
+
+  .project-context {
+    display: none;
   }
   
   .header-buttons {
     width: 100%;
+    display: flex;
+    flex-wrap: wrap;
     justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .btn-filter {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    border-radius: 10px;
+    flex: 1 1 auto;
+    min-width: 120px;
+  }
+
+  .owner-filter-wrapper {
+    flex: 1 1 auto;
+    min-width: 150px;
+  }
+
+  .owner-filter-wrapper .btn-filter {
+    width: 100%;
   }
   
   .owner-filter-dropdown {
     left: 50%;
     transform: translateX(-50%);
+    width: 100%;
+    max-width: 280px;
+    box-sizing: border-box;
   }
   
   .form-grid {
@@ -700,6 +736,31 @@
 }
 
 @media (max-width: 480px) {
+  .header-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .owner-filter-wrapper {
+    grid-column: span 2;
+    width: 100%;
+  }
+
+  .btn-filter {
+    width: 100%;
+    padding: 0.6rem 0.5rem;
+    font-size: 0.82rem;
+    border-radius: 8px;
+    min-width: 0;
+  }
+
+  .btn-filter .btn-icon {
+    width: 14px;
+    height: 14px;
+  }
+
   .tasks-table th,
   .tasks-table td {
     padding: 0.5rem;
