@@ -6,14 +6,90 @@ import './workbook.css';
 const OWNERS = ['PM', 'UI UX', 'Team', 'KC', 'Jess', 'Franco', 'Mayon', 'Rica, QA 2'];
 const STATUSES = ['Not Started', 'In Progress', 'On Hold', 'Complete', 'Blocked'];
 
+const PredecessorSelect = ({ phaseId, currentTaskId, value, onChange, tasks }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const availableTasks = tasks.filter(t => t.phase_id === phaseId && t.task_id !== currentTaskId);
+  const selectedValues = value ? value.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+  const handleToggle = (taskId) => {
+    let newValues;
+    if (selectedValues.includes(taskId)) {
+      newValues = selectedValues.filter(id => id !== taskId);
+    } else {
+      newValues = [...selectedValues, taskId];
+    }
+    onChange(newValues.join(', '));
+  };
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      <div 
+        onClick={() => setIsOpen(!isOpen)} 
+        style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #d1d5db', minWidth: '70px', minHeight: '28px', cursor: 'pointer', background: '#fff', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', transition: 'border-color 0.2s, box-shadow 0.2s', boxShadow: isOpen ? '0 0 0 2px rgba(0, 122, 255, 0.2)' : 'none', borderColor: isOpen ? '#007aff' : '#d1d5db' }}
+      >
+        {value || <span style={{color: '#9ca3af'}}>Select...</span>}
+      </div>
+      {isOpen && (
+        <div style={{ position: 'absolute', top: '50%', left: 'calc(100% + 12px)', transform: 'translateY(-50%)', zIndex: 9999, background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '12px', width: '280px', maxHeight: '300px', overflowY: 'auto', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)' }}>
+          <div style={{ paddingBottom: '8px', marginBottom: '8px', borderBottom: '1px solid #f3f4f6', fontWeight: 600, fontSize: '13px', color: '#374151' }}>
+            Select Predecessors
+          </div>
+          {availableTasks.length === 0 ? (
+            <div style={{ padding: '12px', color: '#9ca3af', fontSize: '13px', textAlign: 'center' }}>No available tasks in this phase</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              {availableTasks.map(t => {
+                const isSelected = selectedValues.includes(t.task_id);
+                return (
+                  <label key={t.id} style={{ display: 'flex', alignItems: 'flex-start', padding: '8px', cursor: 'pointer', borderRadius: '8px', transition: 'background-color 0.2s', backgroundColor: isSelected ? '#eff6ff' : 'transparent' }} onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#f9fafb'; }} onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent'; }}>
+                    <input 
+                      type="checkbox" 
+                      checked={isSelected}
+                      onChange={() => handleToggle(t.task_id)}
+                      style={{ margin: 0, marginRight: '10px', marginTop: '3px', cursor: 'pointer', accentColor: '#007aff', width: '16px', height: '16px', flexShrink: 0 }}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
+                      <span style={{ fontWeight: 600, color: isSelected ? '#1d4ed8' : '#374151', fontSize: '13px', lineHeight: '1.2' }}>{t.task_id}</span>
+                      <span style={{ color: isSelected ? '#3b82f6' : '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '11px', marginTop: '2px' }}>{t.task_name}</span>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const calculateWorkingHours = (start, end) => {
   if (!start || !end) return 1;
   let count = 0;
+  const startDateObj = new Date(start);
+  const endDateObj = new Date(end);
+  const startDateStr = startDateObj.toDateString();
+  const endDateStr = endDateObj.toDateString();
+  
   let curDate = new Date(start);
-  const endDate = new Date(end);
-  while (curDate <= endDate) {
+  while (curDate <= endDateObj) {
     const dayOfWeek = curDate.getDay();
-    if (dayOfWeek !== 0 && dayOfWeek !== 6) count++;
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const curDateStr = curDate.toDateString();
+    
+    if (!isWeekend || curDateStr === startDateStr || curDateStr === endDateStr) count++;
     curDate.setDate(curDate.getDate() + 1);
   }
   return count * 8;
@@ -44,7 +120,8 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
     percent_complete: 0,
     status: 'Not Started',
     notes: '',
-    is_milestone: 0
+    is_milestone: 0,
+    require_predecessor: 0
   });
 
   const overlayStyle = {
@@ -102,12 +179,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
     return `${phaseNumber}.${maxTaskNum + 1}`;
   };
 
-  useEffect(() => {
-    if (formData.phase_id && editingRowId === 'new') {
-      const newTaskId = generateTaskId(formData.phase_id);
-      setFormData(prev => ({ ...prev, task_id: newTaskId }));
-    }
-  }, [formData.phase_id, tasks, phases, editingRowId]);
+
 
   useEffect(() => {
     setFormData(prev => {
@@ -138,22 +210,20 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
     if (tasks.length > 0) {
       const lastTask = tasks[tasks.length - 1];
       setLastPhaseId(lastTask.phase_id);
-      setFormData(prev => ({ ...prev, phase_id: lastTask.phase_id }));
+      if (!editingRowId) {
+        setFormData(prev => ({ ...prev, phase_id: lastTask.phase_id }));
+      }
     } else if (phases && phases.length > 0) {
       setLastPhaseId(phases[0].id);
-      setFormData(prev => ({ ...prev, phase_id: phases[0].id }));
+      if (!editingRowId) {
+        setFormData(prev => ({ ...prev, phase_id: phases[0].id }));
+      }
     }
-  }, [tasks, phases]);
+  }, [tasks, phases, editingRowId]);
 
   useEffect(() => {
     if (selectedProject) setFormData(prev => ({ ...prev, project_id: selectedProject.id }));
   }, [selectedProject]);
-
-  useEffect(() => {
-    if (editingRowId === 'new' && lastPhaseId) {
-      setFormData(prev => ({ ...prev, phase_id: lastPhaseId }));
-    }
-  }, [editingRowId, lastPhaseId]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -185,19 +255,30 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
     }
 
     if (type === 'checkbox') setFormData(prev => ({ ...prev, [name]: checked ? 1 : 0 }));
-    else if (name === 'phase_id') setFormData(prev => ({ ...prev, phase_id: value ? Number(value) : '' }));
+    else if (name === 'phase_id') {
+      const newPhaseId = value ? Number(value) : '';
+      setFormData(prev => ({ 
+        ...prev, 
+        phase_id: newPhaseId,
+        task_id: editingRowId === 'new' ? generateTaskId(newPhaseId) : prev.task_id
+      }));
+    }
     else if (name === 'percent_complete' || name === 'duration') setFormData(prev => ({ ...prev, [name]: value === '' ? '' : Number(value) }));
     else setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const resetForm = () => {
+  const resetForm = (isNew = false) => {
+    const newPhaseId = lastPhaseId || (phases && phases.length > 0 ? phases[0].id : null);
     setFormData({
-      project_id: selectedProject ? selectedProject.id : null, phase_id: lastPhaseId, task_id: '', task_name: '',
+      project_id: selectedProject ? selectedProject.id : null, 
+      phase_id: newPhaseId, 
+      task_id: isNew ? generateTaskId(newPhaseId) : '', 
+      task_name: '',
       start_date: '', end_date: '', predecessors: '', duration: 1, owner: OWNERS[0], percent_complete: 0,
-      status: 'Not Started', notes: '', is_milestone: 0
+      status: 'Not Started', notes: '', is_milestone: 0, require_predecessor: 0
     });
     setFormError('');
-    setEditingRowId(null);
+    setEditingRowId(isNew ? 'new' : null);
     setIsCreatingNewPhase(false);
     setNewPhaseName('');
   };
@@ -257,9 +338,9 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
     }
 
     setFormError('');
-    const predCheck = validatePredecessors(formData.predecessors);
+    const predCheck = validatePredecessors(formData.predecessors, formData.status);
     if (!predCheck.valid) {
-      const msg = `Validation Error: Predecessor task ${predCheck.errorId} is not 'Complete' or does not exist.`;
+      const msg = `Validation Error: Predecessor task ${predCheck.errorId} is not 'Complete'. Cannot proceed with task.`;
       setFormError(msg);
       showAlert(msg);
       return; 
@@ -279,7 +360,8 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
       percent_complete: Number(formData.percent_complete) || 0,
       status: formData.status,
       notes: formData.notes,
-      is_milestone: formData.is_milestone ? 1 : 0
+      is_milestone: formData.is_milestone ? 1 : 0,
+      require_predecessor: formData.require_predecessor ? 1 : 0
     };
     
     try {
@@ -288,12 +370,12 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
         const { error } = await supabase.from('workbook').update(taskData).eq('id', editingRowId);
         if (error) throw error;
         await fetchTasks(); 
-        resetForm();
+        resetForm(false);
       } else {
         const { error } = await supabase.from('workbook').insert([taskData]);
         if (error) throw error;
         await fetchTasks(); 
-        resetForm();
+        resetForm(false);
       }
     } catch (error) { 
       console.error('Error saving task:', error);
@@ -307,6 +389,24 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
       const { error } = await supabase.from('workbook').update({ is_milestone: updatedTask.is_milestone }).eq('id', task.id);
       if (!error) await fetchTasks();
     } catch (error) { showAlert(`Error updating milestone: ${error.message}`); }
+  };
+
+  const handleToggleRequirePredecessor = async (task) => {
+    const updatedValue = task.require_predecessor ? 0 : 1;
+    try {
+      const { error } = await supabase.from('workbook').update({ require_predecessor: updatedValue }).eq('id', task.id);
+      if (error) {
+        if (error.message && error.message.toLowerCase().includes('column')) {
+          showAlert('Please add a boolean or int column named "require_predecessor" to the workbook table in Supabase.');
+        } else {
+          throw error;
+        }
+      } else {
+        await fetchTasks();
+      }
+    } catch (error) { 
+      showAlert(`Error updating require predecessor: ${error.message}`); 
+    }
   };
 
   const handleDeleteTask = async (id) => {
@@ -328,7 +428,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
       project_id: selectedProject ? selectedProject.id : null, phase_id: task.phase_id, task_id: task.task_id,
       task_name: task.task_name, start_date: task.start_date || '', end_date: task.end_date || '', predecessors: task.predecessors || '',
       duration: task.duration, owner: task.owner, percent_complete: task.percent_complete, status: task.status,
-      notes: task.notes || '', is_milestone: task.is_milestone || 0
+      notes: task.notes || '', is_milestone: task.is_milestone || 0, require_predecessor: task.require_predecessor || 0
     });
   };
 
@@ -363,12 +463,14 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
 
   const toggleOwnerFilter = (owner) => setOwnerFilter(prev => prev.includes(owner) ? prev.filter(o => o !== owner) : [...prev, owner]);
   
-  const validatePredecessors = (predecessorInput) => {
+  const validatePredecessors = (predecessorInput, status) => {
     if (!predecessorInput) return { valid: true };
-    const predecessors = predecessorInput.split(',').map(s => s.trim());
+    if (status !== 'In Progress' && status !== 'Complete') return { valid: true };
+
+    const predecessors = predecessorInput.split(',').map(s => s.trim()).filter(Boolean);
     for (const predId of predecessors) {
       const foundTask = tasks.find(t => t.task_id === predId);
-      if (!foundTask || foundTask.status !== 'Complete') {
+      if (foundTask && foundTask.require_predecessor && foundTask.status !== 'Complete') {
         return { valid: false, errorId: predId };
       }
     }
@@ -523,7 +625,15 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
                         <td className="col-task-name"><input type="text" name="task_name" value={formData.task_name} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '120px'}} required /></td>
                         <td className="col-start-date"><input type="date" name="start_date" value={formData.start_date} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '110px'}} /></td>
                         <td className="col-end-date"><input type="date" name="end_date" value={formData.end_date} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '110px'}} min={formData.start_date || new Date().toISOString().split('T')[0]} /></td>
-                        <td className="col-predecessors"><input type="text" name="predecessors" value={formData.predecessors} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '60px'}} /></td>
+                        <td className="col-predecessors">
+                          <PredecessorSelect 
+                            phaseId={formData.phase_id} 
+                            currentTaskId={formData.task_id} 
+                            value={formData.predecessors} 
+                            onChange={(val) => setFormData(prev => ({ ...prev, predecessors: val }))}
+                            tasks={tasks}
+                          />
+                        </td>
                         <td className="col-duration"><input type="number" name="duration" value={formData.duration} onChange={handleInputChange} min="1" style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '60px'}} /></td>
                         <td className="col-owner">
                           <select name="owner" value={formData.owner} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc'}} required>
@@ -544,7 +654,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
                                 <polyline points="20 6 9 17 4 12"/>
                               </svg>
                             </button>
-                            <button className="btn-cancel" onClick={() => { resetForm(); setEditingRowId(null); }} title="Cancel Editing">
+                            <button className="btn-cancel" onClick={() => resetForm(false)} title="Cancel Editing">
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M18 6 6 18"/>
                                 <path d="m6 6 12 12"/>
@@ -569,7 +679,25 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
                       <td className="col-task-name">{task.task_name}</td>
                       <td className="col-start-date">{formatDate(task.start_date)}</td>
                       <td className="col-end-date">{formatDate(task.end_date)}</td>
-                      <td className="col-predecessors">{task.predecessors || '—'}</td>
+                      <td className="col-predecessors">
+                        {task.predecessors ? (
+                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                            {task.predecessors.split(',').map((pred, i) => (
+                              <span key={i} style={{
+                                background: 'rgba(0, 122, 255, 0.12)',
+                                color: '#007aff',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {pred.trim()}
+                              </span>
+                            ))}
+                          </div>
+                        ) : '—'}
+                      </td>
                       <td className="col-duration">{task.duration}</td>
                       <td className="col-owner">{task.owner}</td>
                       <td className="col-percent">
@@ -597,6 +725,20 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
                               <line x1="14" x2="14" y1="11" y2="17"/>
                             </svg>
                           </button>
+                          <button 
+                            className="btn-require-pred" 
+                            onClick={() => handleToggleRequirePredecessor(task)} 
+                            title="Required Predecessor"
+                            style={{
+                              background: 'none', border: 'none', cursor: 'pointer', padding: '4px',
+                              color: task.require_predecessor ? '#ff3b30' : '#c7c7cc'
+                            }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -608,7 +750,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
         </>
       )}
 
-      <div className="add-task-footer"><button className="btn-add" onClick={() => { resetForm(); setEditingRowId('new'); }}>+ Add New Task</button></div>
+      <div className="add-task-footer"><button className="btn-add" onClick={() => resetForm(true)}>+ Add New Task</button></div>
     </div>
   );
 }
