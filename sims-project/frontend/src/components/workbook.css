@@ -743,6 +743,18 @@
     width: 100%;
   }
 
+  .view-toggle {
+    grid-column: span 2;
+    width: 100%;
+  }
+
+  .view-toggle .toggle-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 0.55rem 0.8rem;
+    font-size: 0.82rem;
+  }
+
   .owner-filter-wrapper {
     grid-column: span 2;
     width: 100%;
@@ -754,6 +766,7 @@
     font-size: 0.82rem;
     border-radius: 8px;
     min-width: 0;
+    justify-content: center;
   }
 
   .btn-filter .btn-icon {
@@ -836,4 +849,39 @@
 
 .btn-delete-confirm:hover {
   background: #d9342b;
+}
+
+/* Segmented View Toggle Control */
+.view-toggle {
+  display: flex;
+  background: rgba(120, 120, 128, 0.08);
+  padding: 3px;
+  border-radius: 12px;
+  gap: 2px;
+  border: 0.5px solid rgba(60, 60, 67, 0.05);
+}
+
+.toggle-btn {
+  background: transparent;
+  color: #8e8e93;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 9px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toggle-btn:hover {
+  color: #1c1c1e;
+}
+
+.toggle-btn.active {
+  background: #ffffff;
+  color: #007aff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
 }

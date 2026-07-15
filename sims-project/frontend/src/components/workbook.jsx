@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { useModal } from './ModalProvider';
 import './workbook.css';
+import GanttChart from './GanttChart';
 
 const OWNERS = ['PM', 'UI UX', 'Team', 'KC', 'Jess', 'Franco', 'Mayon', 'Rica, QA 2'];
 const STATUSES = ['Not Started', 'In Progress', 'On Hold', 'Complete', 'Blocked'];
@@ -97,6 +98,7 @@ const calculateWorkingHours = (start, end) => {
 
 function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
   const { showAlert, showConfirm } = useModal();
+  const [viewMode, setViewMode] = useState('table'); // 'table' or 'gantt'
   const [editingRowId, setEditingRowId] = useState(null);
   const [lastPhaseId, setLastPhaseId] = useState(null);
   const [isCreatingNewPhase, setIsCreatingNewPhase] = useState(false);
@@ -268,6 +270,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
   };
 
   const resetForm = (isNew = false) => {
+    if (isNew) setViewMode('table');
     const newPhaseId = lastPhaseId || (phases && phases.length > 0 ? phases[0].id : null);
     setFormData({
       project_id: selectedProject ? selectedProject.id : null, 
@@ -323,8 +326,37 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (formData.start_date && formData.end_date && formData.end_date < formData.start_date) {
-      showAlert("End date can't be earlier than the start date.");
+      setFormError("End date can't be earlier than the start date.");
       return;
+    }
+
+    // Project date boundary validation
+    if (selectedProject) {
+      if (selectedProject.end_date && formData.end_date) {
+        const projEnd = new Date(selectedProject.end_date);
+        const taskEnd = new Date(formData.end_date);
+        projEnd.setHours(0, 0, 0, 0);
+        taskEnd.setHours(0, 0, 0, 0);
+        
+        if (taskEnd > projEnd) {
+          const msg = `Task end date cannot be after the project end date (${formatDate(selectedProject.end_date)}).`;
+          setFormError(msg);
+          return;
+        }
+      }
+      
+      if (selectedProject.start_date && formData.start_date) {
+        const projStart = new Date(selectedProject.start_date);
+        const taskStart = new Date(formData.start_date);
+        projStart.setHours(0, 0, 0, 0);
+        taskStart.setHours(0, 0, 0, 0);
+        
+        if (taskStart < projStart) {
+          const msg = `Task start date cannot be before the project start date (${formatDate(selectedProject.start_date)}).`;
+          setFormError(msg);
+          return;
+        }
+      }
     }
 
     const isDuplicate = tasks.some(t => 
@@ -347,6 +379,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
     }
     
     // STRICT SANITIZATION: Forces empty strings to NULL so Postgres doesn't silently crash
+    const { data: { user } } = await supabase.auth.getUser();
     const taskData = { 
       project_id: selectedProject ? selectedProject.id : null,
       phase_id: formData.phase_id || null,
@@ -357,22 +390,24 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
       predecessors: formData.predecessors || null,
       duration: Number(formData.duration) || 1,
       owner: formData.owner,
+      assignees: formData.owner ? [formData.owner] : [],
       percent_complete: Number(formData.percent_complete) || 0,
       status: formData.status,
       notes: formData.notes,
       is_milestone: formData.is_milestone ? 1 : 0,
-      require_predecessor: formData.require_predecessor ? 1 : 0
+      require_predecessor: formData.require_predecessor ? 1 : 0,
+      phase: getPhaseName(formData.phase_id),
+      user_id: user ? user.id : null
     };
     
     try {
       if (editingRowId && editingRowId !== 'new') {
-        // ALWAYS targets the 'workbook' table
-        const { error } = await supabase.from('workbook').update(taskData).eq('id', editingRowId);
+        const { error } = await supabase.from('tasks').update(taskData).eq('id', editingRowId);
         if (error) throw error;
         await fetchTasks(); 
         resetForm(false);
       } else {
-        const { error } = await supabase.from('workbook').insert([taskData]);
+        const { error } = await supabase.from('tasks').insert([taskData]);
         if (error) throw error;
         await fetchTasks(); 
         resetForm(false);
@@ -386,7 +421,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
   const handleToggleMilestone = async (task) => {
     const updatedTask = { ...task, is_milestone: task.is_milestone ? 0 : 1 };
     try {
-      const { error } = await supabase.from('workbook').update({ is_milestone: updatedTask.is_milestone }).eq('id', task.id);
+      const { error } = await supabase.from('tasks').update({ is_milestone: updatedTask.is_milestone }).eq('id', task.id);
       if (!error) await fetchTasks();
     } catch (error) { showAlert(`Error updating milestone: ${error.message}`); }
   };
@@ -394,13 +429,9 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
   const handleToggleRequirePredecessor = async (task) => {
     const updatedValue = task.require_predecessor ? 0 : 1;
     try {
-      const { error } = await supabase.from('workbook').update({ require_predecessor: updatedValue }).eq('id', task.id);
+      const { error } = await supabase.from('tasks').update({ require_predecessor: updatedValue }).eq('id', task.id);
       if (error) {
-        if (error.message && error.message.toLowerCase().includes('column')) {
-          showAlert('Please add a boolean or int column named "require_predecessor" to the workbook table in Supabase.');
-        } else {
-          throw error;
-        }
+        throw error;
       } else {
         await fetchTasks();
       }
@@ -413,7 +444,7 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
     const confirmed = await showConfirm('Are you sure you want to delete this task?');
     if (!confirmed) return;
     try {
-      const { error } = await supabase.from('workbook').delete().eq('id', id);
+      const { error } = await supabase.from('tasks').delete().eq('id', id);
       if (error) throw error;
       await fetchTasks();
     } catch (error) {
@@ -477,6 +508,32 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
     return { valid: true };
   };
 
+  const isFormInvalid = () => {
+    if (formData.start_date && formData.end_date && formData.end_date < formData.start_date) {
+      return true;
+    }
+
+    if (selectedProject) {
+      if (selectedProject.end_date && formData.end_date) {
+        const projEnd = new Date(selectedProject.end_date);
+        const taskEnd = new Date(formData.end_date);
+        projEnd.setHours(0, 0, 0, 0);
+        taskEnd.setHours(0, 0, 0, 0);
+        if (taskEnd > projEnd) return true;
+      }
+      
+      if (selectedProject.start_date && formData.start_date) {
+        const projStart = new Date(selectedProject.start_date);
+        const taskStart = new Date(formData.start_date);
+        projStart.setHours(0, 0, 0, 0);
+        taskStart.setHours(0, 0, 0, 0);
+        if (taskStart < projStart) return true;
+      }
+    }
+
+    return false;
+  };
+
   const clearOwnerFilter = () => setOwnerFilter([]);
   const sortedTasks = [...tasks].filter(t => ownerFilter.length === 0 || ownerFilter.includes(t.owner)).sort((a, b) => a.id - b.id);
 
@@ -528,6 +585,20 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
           <p className="project-context">{selectedProject.name}</p>
         </div>
         <div className="header-buttons">
+          <div className="view-toggle" style={{ marginRight: '8px' }}>
+            <button 
+              className={`toggle-btn ${viewMode === 'table' ? 'active' : ''}`} 
+              onClick={() => setViewMode('table')}
+            >
+              Table View
+            </button>
+            <button 
+              className={`toggle-btn ${viewMode === 'gantt' ? 'active' : ''}`} 
+              onClick={() => setViewMode('gantt')}
+            >
+              Gantt View
+            </button>
+          </div>
           <button className="btn-filter" onClick={() => setIsPhaseManagerOpen(true)}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="btn-icon">
               <rect width="18" height="18" x="3" y="3" rx="2"/>
@@ -586,167 +657,187 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
               {formError}
             </div>
           )}
-          <div className="tasks-table-container">
-            <table className="tasks-table">
-              <thead>
-                <tr>
-                  {isMilestoneMode && <th className="col-milestone">Milestone</th>}
-                  <th className="col-phase">Phase</th>
-                  <th className="col-task-id">Task ID</th>
-                  <th className="col-task-name">Task Name</th>
-                  <th className="col-start-date">Start Date</th>
-                  <th className="col-end-date">End Date</th>
-                  <th className="col-predecessors">Predecessors</th>
-                  <th className="col-duration">Hours<br/>Duration</th>
-                  <th className="col-owner">Owner</th>
-                  <th className="col-percent">% Complete</th>
-                  <th className="col-status">Status</th>
-                  <th className="col-notes">Notes</th>
-                  <th className="col-actions actions-header">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayTasks.map((task) => {
-                  if (editingRowId === task.id) {
+          {viewMode === 'table' ? (
+            <div className="tasks-table-container">
+              <table className="tasks-table">
+                <thead>
+                  <tr>
+                    {isMilestoneMode && <th className="col-milestone">Milestone</th>}
+                    <th className="col-phase">Phase</th>
+                    <th className="col-task-id">Task ID</th>
+                    <th className="col-task-name">Task Name</th>
+                    <th className="col-start-date">Start Date</th>
+                    <th className="col-end-date">End Date</th>
+                    <th className="col-predecessors">Predecessors</th>
+                    <th className="col-duration">Hours<br/>Duration</th>
+                    <th className="col-owner">Owner</th>
+                    <th className="col-percent">% Complete</th>
+                    <th className="col-status">Status</th>
+                    <th className="col-notes">Notes</th>
+                    <th className="col-actions actions-header">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayTasks.map((task) => {
+                    if (editingRowId === task.id) {
+                      return (
+                        <tr key={task.id} className="new-task-row">
+                          {isMilestoneMode && (
+                            <td className="col-milestone" style={{ textAlign: 'center' }}>
+                              <input type="checkbox" name="is_milestone" checked={formData.is_milestone === 1} onChange={handleInputChange} className="milestone-checkbox" />
+                            </td>
+                          )}
+                          <td className="col-phase">
+                            <select name="phase_id" value={formData.phase_id || ''} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '100px'}} required>
+                              <option value="">Phase...</option>
+                              {phases && phases.map(p => <option key={p.id} value={p.id}>{p.name.replace(/\[.*?\]\s*/, '')}</option>)}
+                            </select>
+                          </td>
+                          <td className="col-task-id"><input type="text" name="task_id" value={formData.task_id} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '60px'}} disabled={task.id !== 'new'} /></td>
+                          <td className="col-task-name"><input type="text" name="task_name" value={formData.task_name} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '120px'}} required /></td>
+                          <td className="col-start-date"><input type="date" name="start_date" value={formData.start_date} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '110px'}} /></td>
+                          <td className="col-end-date"><input type="date" name="end_date" value={formData.end_date} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '110px'}} min={formData.start_date || new Date().toISOString().split('T')[0]} /></td>
+                          <td className="col-predecessors">
+                            <PredecessorSelect 
+                              phaseId={formData.phase_id} 
+                              currentTaskId={formData.task_id} 
+                              value={formData.predecessors} 
+                              onChange={(val) => setFormData(prev => ({ ...prev, predecessors: val }))}
+                              tasks={tasks}
+                            />
+                          </td>
+                          <td className="col-duration"><input type="number" name="duration" value={formData.duration} onChange={handleInputChange} min="1" style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '60px'}} /></td>
+                          <td className="col-owner">
+                            <select name="owner" value={formData.owner} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc'}} required>
+                              {OWNERS.map(o => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                          </td>
+                          <td className="col-percent"><input type="number" name="percent_complete" value={formData.percent_complete} onChange={handleInputChange} min="0" max="100" style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '60px'}} /></td>
+                          <td className="col-status">
+                            <select name="status" value={formData.status} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc'}} required>
+                              {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </td>
+                          <td className="col-notes"><input type="text" name="notes" value={formData.notes} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '100px'}} /></td>
+                          <td className="col-actions">
+                            <div className="actions-wrapper">
+                              <button 
+                                className="btn-save" 
+                                onClick={handleSubmit} 
+                                title="Save Changes"
+                                disabled={isFormInvalid()}
+                                style={{
+                                  opacity: isFormInvalid() ? 0.4 : 1,
+                                  cursor: isFormInvalid() ? 'not-allowed' : 'pointer'
+                                }}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                              </button>
+                              <button className="btn-cancel" onClick={() => resetForm(false)} title="Cancel Editing">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M18 6 6 18"/>
+                                  <path d="m6 6 12 12"/>
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
+    
+                    const phaseStyle = getPhaseStyle(task.phase_id);
                     return (
-                      <tr key={task.id} className="new-task-row">
+                      <tr key={task.id}>
                         {isMilestoneMode && (
                           <td className="col-milestone" style={{ textAlign: 'center' }}>
-                            <input type="checkbox" name="is_milestone" checked={formData.is_milestone === 1} onChange={handleInputChange} className="milestone-checkbox" />
+                            <input type="checkbox" checked={task.is_milestone === 1} onChange={() => handleToggleMilestone(task)} className="milestone-checkbox" title="Mark as Milestone" />
                           </td>
                         )}
-                        <td className="col-phase">
-                          <select name="phase_id" value={formData.phase_id || ''} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '100px'}} required>
-                            <option value="">Phase...</option>
-                            {phases && phases.map(p => <option key={p.id} value={p.id}>{p.name.replace(/\[.*?\]\s*/, '')}</option>)}
-                          </select>
-                        </td>
-                        <td className="col-task-id"><input type="text" name="task_id" value={formData.task_id} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '60px'}} disabled={task.id !== 'new'} /></td>
-                        <td className="col-task-name"><input type="text" name="task_name" value={formData.task_name} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '120px'}} required /></td>
-                        <td className="col-start-date"><input type="date" name="start_date" value={formData.start_date} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '110px'}} /></td>
-                        <td className="col-end-date"><input type="date" name="end_date" value={formData.end_date} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '110px'}} min={formData.start_date || new Date().toISOString().split('T')[0]} /></td>
+                        <td className="col-phase"><span className="phase-button" style={phaseStyle}>{getPhaseName(task.phase_id)}</span></td>
+                        <td className="col-task-id">{task.task_id}</td>
+                        <td className="col-task-name">{task.task_name}</td>
+                        <td className="col-start-date">{formatDate(task.start_date)}</td>
+                        <td className="col-end-date">{formatDate(task.end_date)}</td>
                         <td className="col-predecessors">
-                          <PredecessorSelect 
-                            phaseId={formData.phase_id} 
-                            currentTaskId={formData.task_id} 
-                            value={formData.predecessors} 
-                            onChange={(val) => setFormData(prev => ({ ...prev, predecessors: val }))}
-                            tasks={tasks}
-                          />
+                          {task.predecessors ? (
+                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                              {task.predecessors.split(',').map((pred, i) => (
+                                <span key={i} style={{
+                                  background: 'rgba(0, 122, 255, 0.12)',
+                                  color: '#007aff',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {pred.trim()}
+                                </span>
+                              ))}
+                            </div>
+                          ) : '—'}
                         </td>
-                        <td className="col-duration"><input type="number" name="duration" value={formData.duration} onChange={handleInputChange} min="1" style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '60px'}} /></td>
-                        <td className="col-owner">
-                          <select name="owner" value={formData.owner} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc'}} required>
-                            {OWNERS.map(o => <option key={o} value={o}>{o}</option>)}
-                          </select>
+                        <td className="col-duration">{task.duration}</td>
+                        <td className="col-owner">{task.owner}</td>
+                        <td className="col-percent">
+                          <div className="progress-bar-cell">
+                            <div className="progress-bar-track"><div className="progress-bar-fill" style={{ width: `${task.percent_complete}%` }}></div></div>
+                            <span className="progress-bar-text">{task.percent_complete}%</span>
+                          </div>
                         </td>
-                        <td className="col-percent"><input type="number" name="percent_complete" value={formData.percent_complete} onChange={handleInputChange} min="0" max="100" style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '60px'}} /></td>
-                        <td className="col-status">
-                          <select name="status" value={formData.status} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc'}} required>
-                            {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                        </td>
-                        <td className="col-notes"><input type="text" name="notes" value={formData.notes} onChange={handleInputChange} style={{padding: '4px', borderRadius: '4px', border: '1px solid #ccc', width: '100px'}} /></td>
+                        <td className="col-status"><span className={`status-badge status-${task.status.toLowerCase().replace(' ', '-')}`}>{task.status}</span></td>
+                        <td className="col-notes">{task.notes || ''}</td>
                         <td className="col-actions">
                           <div className="actions-wrapper">
-                            <button className="btn-save" onClick={handleSubmit} title="Save Changes">
+                            <button className="btn-edit" onClick={() => handleEdit(task)} title="Edit Task">
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="20 6 9 17 4 12"/>
+                                <path d="M12 20h9"/>
+                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
                               </svg>
                             </button>
-                            <button className="btn-cancel" onClick={() => resetForm(false)} title="Cancel Editing">
+                            <button className="btn-delete" onClick={() => handleDeleteTask(task.id)} title="Delete Task">
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M18 6 6 18"/>
-                                <path d="m6 6 12 12"/>
+                                <path d="M3 6h18"/>
+                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                                <line x1="10" x2="10" y1="11" y2="17"/>
+                                <line x1="14" x2="14" y1="11" y2="17"/>
+                              </svg>
+                            </button>
+                            <button 
+                              className="btn-require-pred" 
+                              onClick={() => handleToggleRequirePredecessor(task)} 
+                              title="Required Predecessor"
+                              style={{
+                                background: 'none', border: 'none', cursor: 'pointer', padding: '4px',
+                                color: task.require_predecessor ? '#ff3b30' : '#c7c7cc'
+                              }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                               </svg>
                             </button>
                           </div>
                         </td>
                       </tr>
                     );
-                  }
-  
-                  const phaseStyle = getPhaseStyle(task.phase_id);
-                  return (
-                    <tr key={task.id}>
-                      {isMilestoneMode && (
-                        <td className="col-milestone" style={{ textAlign: 'center' }}>
-                          <input type="checkbox" checked={task.is_milestone === 1} onChange={() => handleToggleMilestone(task)} className="milestone-checkbox" title="Mark as Milestone" />
-                        </td>
-                      )}
-                      <td className="col-phase"><span className="phase-button" style={phaseStyle}>{getPhaseName(task.phase_id)}</span></td>
-                      <td className="col-task-id">{task.task_id}</td>
-                      <td className="col-task-name">{task.task_name}</td>
-                      <td className="col-start-date">{formatDate(task.start_date)}</td>
-                      <td className="col-end-date">{formatDate(task.end_date)}</td>
-                      <td className="col-predecessors">
-                        {task.predecessors ? (
-                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                            {task.predecessors.split(',').map((pred, i) => (
-                              <span key={i} style={{
-                                background: 'rgba(0, 122, 255, 0.12)',
-                                color: '#007aff',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontSize: '11px',
-                                fontWeight: 600,
-                                whiteSpace: 'nowrap'
-                              }}>
-                                {pred.trim()}
-                              </span>
-                            ))}
-                          </div>
-                        ) : '—'}
-                      </td>
-                      <td className="col-duration">{task.duration}</td>
-                      <td className="col-owner">{task.owner}</td>
-                      <td className="col-percent">
-                        <div className="progress-bar-cell">
-                          <div className="progress-bar-track"><div className="progress-bar-fill" style={{ width: `${task.percent_complete}%` }}></div></div>
-                          <span className="progress-bar-text">{task.percent_complete}%</span>
-                        </div>
-                      </td>
-                      <td className="col-status"><span className={`status-badge status-${task.status.toLowerCase().replace(' ', '-')}`}>{task.status}</span></td>
-                      <td className="col-notes">{task.notes || ''}</td>
-                      <td className="col-actions">
-                        <div className="actions-wrapper">
-                          <button className="btn-edit" onClick={() => handleEdit(task)} title="Edit Task">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M12 20h9"/>
-                              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
-                            </svg>
-                          </button>
-                          <button className="btn-delete" onClick={() => handleDeleteTask(task.id)} title="Delete Task">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M3 6h18"/>
-                              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
-                              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
-                              <line x1="10" x2="10" y1="11" y2="17"/>
-                              <line x1="14" x2="14" y1="11" y2="17"/>
-                            </svg>
-                          </button>
-                          <button 
-                            className="btn-require-pred" 
-                            onClick={() => handleToggleRequirePredecessor(task)} 
-                            title="Required Predecessor"
-                            style={{
-                              background: 'none', border: 'none', cursor: 'pointer', padding: '4px',
-                              color: task.require_predecessor ? '#ff3b30' : '#c7c7cc'
-                            }}
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <GanttChart 
+              tasks={sortedTasks}
+              phases={phases}
+              onEditTask={(task) => {
+                setViewMode('table');
+                handleEdit(task);
+              }}
+            />
+          )}
         </>
       )}
 

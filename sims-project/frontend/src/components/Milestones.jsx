@@ -13,7 +13,7 @@ function Milestones({ selectedProject }) {
     setLoading(true);
     try {
       const { data: milestonesData, error } = await supabase
-        .from('workbook')
+        .from('tasks')
         .select('*')
         .eq('project_id', selectedProject.id)
         .eq('is_milestone', 1)

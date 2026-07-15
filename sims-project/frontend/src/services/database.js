@@ -17,7 +17,7 @@ export const fetchProjects = async () => {
 
 export const fetchTasksByProject = async (projectId) => {
   const userId = await getCurrentUserId();
-  let query = supabase.from('workbook').select('*').eq('project_id', projectId);
+  let query = supabase.from('tasks').select('*').eq('project_id', projectId);
   if (userId) query = query.eq('user_id', userId);
 
   const { data, error } = await query;

@@ -32,7 +32,7 @@ const SprintTrackerPage = ({ selectedProject, phases, fetchPhases }) => {
         </div>
 
         {activeTab === 'overview' && <SprintOverview selectedProject={selectedProject} />}
-        {activeTab === 'view' && <SprintView selectedProject={selectedProject} />}
+        {activeTab === 'view' && <SprintView selectedProject={selectedProject} phases={phases} />}
         {activeTab === 'master' && <SprintMaster selectedProject={selectedProject} phases={phases} fetchPhases={fetchPhases} />}
       </div>
     </div>

@@ -1,8 +1,4 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-
-const dbPath = path.resolve(__dirname, 'sims.db');
-const db = new sqlite3.Database(dbPath);
+const pool = require('./database');
 
 // Sample data
 const sampleData = {
@@ -124,88 +120,69 @@ const sampleData = {
   }
 };
 
+// Helper function to get count
+async function getCount(table, condition = '') {
+  const sql = condition ? `SELECT COUNT(*) as count FROM "${table}" WHERE ${condition}` : `SELECT COUNT(*) as count FROM "${table}"`;
+  const result = await pool.query(sql);
+  return parseInt(result.rows[0].count, 10);
+}
+
 // Function to populate database
 async function populateDatabase() {
-  console.log('Starting database population...');
+  console.log('Starting database population on Supabase PostgreSQL...');
   console.log('');
 
   // Clear existing data
-  db.run("DELETE FROM tasks", (err) => {
-    if (err) console.error('Error clearing tasks:', err);
-  });
-  db.run("DELETE FROM phases", (err) => {
-    if (err) console.error('Error clearing phases:', err);
-  });
-  db.run("DELETE FROM projects", (err) => {
-    if (err) console.error('Error clearing projects:', err);
-  });
+  await pool.query("DELETE FROM tasks");
+  console.log('🗑️ Cleared tasks table');
+  await pool.query("DELETE FROM phases");
+  console.log('🗑️ Cleared phases table');
+  await pool.query("DELETE FROM projects");
+  console.log('🗑️ Cleared projects table');
+  console.log('');
 
   // Insert projects
+  const idMap = {}; // Maps old project indices to new DB project IDs
+  let index = 1;
   for (const project of sampleData.projects) {
     const { name, description, status, start_date, end_date } = project;
-    await new Promise((resolve, reject) => {
-      db.run(
-        `INSERT INTO projects (name, description, status, start_date, end_date) VALUES (?, ?, ?, ?, ?)`,
-        [name, description, status, start_date, end_date],
-        function(err) {
-          if (err) {
-            console.error('Error inserting project:', err);
-            reject(err);
-          } else {
-            console.log(`✅ Project created: ${name}`);
-            resolve(this.lastID);
-          }
-        }
-      );
-    });
+    const result = await pool.query(
+      `INSERT INTO projects (name, description, status, start_date, end_date) 
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [name, description, status, start_date, end_date]
+    );
+    const newId = result.rows[0].id;
+    idMap[index] = newId;
+    console.log(`✅ Project created: "${name}" (ID: ${newId})`);
+    index++;
   }
 
   console.log('');
   console.log('✅ All projects created!');
   console.log('');
 
-  // Get all projects to get their IDs
-  const projects = await new Promise((resolve, reject) => {
-    db.all("SELECT * FROM projects", (err, rows) => {
-      if (err) {
-        console.error('Error fetching projects:', err);
-        reject(err);
-      } else {
-        resolve(rows);
-      }
-    });
-  });
-
   // Insert phases and tasks for each project
-  for (const project of projects) {
-    const phaseNames = sampleData.phases[project.id] || [];
-    const projectTasks = sampleData.tasks[project.id] || [];
+  index = 1;
+  for (const project of sampleData.projects) {
+    const projectId = idMap[index];
+    const phaseNames = sampleData.phases[index] || [];
+    const projectTasks = sampleData.tasks[index] || [];
 
-    console.log(`📁 Processing project: ${project.name}`);
+    console.log(`📁 Processing project: "${project.name}" (ID: ${projectId})`);
 
     // Insert phases
     const phaseIds = [];
     for (const phaseName of phaseNames) {
-      const phaseId = await new Promise((resolve, reject) => {
-        db.run(
-          `INSERT INTO phases (project_id, name) VALUES (?, ?)`,
-          [project.id, phaseName],
-          function(err) {
-            if (err) {
-              console.error('Error inserting phase:', err);
-              reject(err);
-            } else {
-              console.log(`  📋 Phase created: ${phaseName}`);
-              resolve(this.lastID);
-            }
-          }
-        );
-      });
+      const result = await pool.query(
+        `INSERT INTO phases (project_id, name) VALUES ($1, $2) RETURNING id`,
+        [projectId, phaseName]
+      );
+      const phaseId = result.rows[0].id;
       phaseIds.push(phaseId);
+      console.log(`  📋 Phase created: "${phaseName}" (ID: ${phaseId})`);
     }
 
     // Insert tasks for each phase
-    let taskIndex = 0;
     for (const phaseId of phaseIds) {
       const phaseIndex = phaseIds.indexOf(phaseId);
       const tasksPerPhase = Math.ceil(projectTasks.length / phaseIds.length);
@@ -214,39 +191,30 @@ async function populateDatabase() {
       const tasksForPhase = projectTasks.slice(start, end);
 
       for (const task of tasksForPhase) {
-        await new Promise((resolve, reject) => {
-          db.run(
-            `INSERT INTO tasks (project_id, phase_id, task_id, task_name, start_date, end_date, predecessors, duration, owner, percent_complete, status, notes, is_milestone)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              project.id,
-              phaseId,
-              task.task_id,
-              task.task_name,
-              task.start_date,
-              task.end_date,
-              task.predecessors || '',
-              task.duration,
-              task.owner,
-              task.percent_complete || 0,
-              task.status || 'Not Started',
-              task.notes || '',
-              task.is_milestone || 0
-            ],
-            function(err) {
-              if (err) {
-                console.error('Error inserting task:', err);
-                reject(err);
-              } else {
-                console.log(`    ✅ Task created: ${task.task_id} - ${task.task_name}`);
-                resolve();
-              }
-            }
-          );
-        });
+        await pool.query(
+          `INSERT INTO tasks (project_id, phase_id, task_id, task_name, start_date, end_date, predecessors, duration, owner, percent_complete, status, notes, is_milestone)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+          [
+            projectId,
+            phaseId,
+            task.task_id,
+            task.task_name,
+            task.start_date,
+            task.end_date,
+            task.predecessors || '',
+            task.duration,
+            task.owner,
+            task.percent_complete || 0,
+            task.status || 'Not Started',
+            task.notes || '',
+            task.is_milestone || 0
+          ]
+        );
+        console.log(`    ✅ Task created: ${task.task_id} - "${task.task_name}"`);
       }
     }
     console.log('');
+    index++;
   }
 
   // Get final counts
@@ -265,26 +233,13 @@ async function populateDatabase() {
   console.log('========================================');
 }
 
-// Helper function to get count
-function getCount(table, condition = '') {
-  return new Promise((resolve, reject) => {
-    const sql = condition ? `SELECT COUNT(*) as count FROM ${table} WHERE ${condition}` : `SELECT COUNT(*) as count FROM ${table}`;
-    db.get(sql, (err, row) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(row.count);
-      }
-    });
-  });
-}
-
 // Run the population
-populateDatabase().then(() => {
-  db.close();
-  console.log('');
-  console.log('✅ Database closed.');
-}).catch(err => {
-  console.error('❌ Error:', err);
-  db.close();
-});
+populateDatabase()
+  .then(() => {
+    console.log('Database population script run finished successfully.');
+    pool.end();
+  })
+  .catch(err => {
+    console.error('❌ Error during database population:', err);
+    pool.end();
+  });
