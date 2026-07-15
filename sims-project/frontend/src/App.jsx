@@ -44,7 +44,16 @@ function AppContent() {
     if (!projectId) return;
     try {
       const data = await db.fetchTasksByProject(projectId);
-      setTasks(data);
+      const sanitized = (data || []).map(t => {
+        const fallbackOwner = t.owner || (t.assignees && t.assignees.length > 0 ? t.assignees[0] : 'PM');
+        const fallbackAssignees = t.assignees || (t.owner ? [t.owner] : []);
+        return {
+          ...t,
+          owner: fallbackOwner,
+          assignees: fallbackAssignees
+        };
+      });
+      setTasks(sanitized);
     } catch (error) {
       console.error('Error fetching tasks:', error);
     }

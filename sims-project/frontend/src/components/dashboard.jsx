@@ -156,15 +156,11 @@ function Dashboard({ tasks, selectedProject, projectPhases }) {
 
   // SVG donut chart parameters
   const radius = 40;
-  const center = 50;
   const circumference = 2 * Math.PI * radius;
 
   // Calculate stroke-dasharray and offset for each segment
-  const completeOffset = 0;
   const completeDash = (completePct / 100) * circumference;
-  const inProgressOffset = completeDash;
   const inProgressDash = (inProgressPct / 100) * circumference;
-  const notStartedOffset = completeDash + inProgressDash;
   const notStartedDash = (notStartedPct / 100) * circumference;
 
   return (

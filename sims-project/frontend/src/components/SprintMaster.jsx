@@ -66,17 +66,24 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
       // ONLY fetch from `tasks` table
       const { data: taskData } = await supabase.from('tasks').select('*').eq('project_id', selectedProject.id).order('id', { ascending: true });
       if (taskData) {
-        setTasks(taskData.map(t => ({
-          id: t.id, sprint: t.sprint || '', taskName: t.task_name || '', assignees: t.assignees || [], 
-          phase: t.phase || '', storyPoints: t.story_points || 1, priority: t.priority || 'Medium', 
-          status: t.status || 'To Do', notes: t.notes || ''
-        })));
+        setTasks(taskData.map(t => {
+          const matchedPhase = phases && phases.find(p => p.id === t.phase_id);
+          const phaseName = t.phase || (matchedPhase ? matchedPhase.name : '');
+          const fallbackAssignees = t.assignees && t.assignees.length > 0
+            ? t.assignees
+            : (t.owner ? [t.owner] : []);
+          return {
+            id: t.id, sprint: t.sprint || '', taskName: t.task_name || '', assignees: fallbackAssignees, 
+            phase: phaseName, storyPoints: t.story_points || 1, priority: t.priority || 'Medium', 
+            status: t.status || 'To Do', notes: t.notes || ''
+          };
+        }));
       }
     } catch (error) { console.error("Error fetching data:", error.message); } 
     finally { setLoading(false); }
   }
 
-  useEffect(() => { if (selectedProject) fetchData(); }, [selectedProject]);
+  useEffect(() => { if (selectedProject) fetchData(); }, [selectedProject, phases]);
 
   const handleTaskChange = (id, field, value) => setTasks(tasks.map(task => task.id === id ? { ...task, [field]: value } : task));
   const handleFilterChange = (field, value) => setFilters({ ...filters, [field]: value });
@@ -225,11 +232,28 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
       return; 
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Map text phase to numeric phase_id
+    const matchedPhase = phases && phases.find(p => p.name === taskToUpdate.phase);
+    const phaseId = matchedPhase ? matchedPhase.id : null;
+
+    // Sync assignee array to owner text column
+    const taskOwner = taskToUpdate.assignees && taskToUpdate.assignees.length > 0 ? taskToUpdate.assignees[0] : '';
+
     const dbPayload = { 
       project_id: selectedProject.id,
-      sprint: taskToUpdate.sprint, task_name: taskToUpdate.taskName, assignees: taskToUpdate.assignees, 
-      phase: taskToUpdate.phase, story_points: taskToUpdate.storyPoints, priority: taskToUpdate.priority, 
-      status: taskToUpdate.status, notes: taskToUpdate.notes 
+      sprint: taskToUpdate.sprint, 
+      task_name: taskToUpdate.taskName, 
+      assignees: taskToUpdate.assignees, 
+      phase: taskToUpdate.phase, 
+      phase_id: phaseId,
+      story_points: taskToUpdate.storyPoints, 
+      priority: taskToUpdate.priority, 
+      status: taskToUpdate.status, 
+      notes: taskToUpdate.notes,
+      owner: taskOwner,
+      user_id: user ? user.id : null
     };
 
     try {

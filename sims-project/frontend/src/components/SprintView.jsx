@@ -2,17 +2,28 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-const SprintView = ({ selectedProject }) => {
+const SprintView = ({ selectedProject, phases }) => {
   const [tasks, setTasks] = useState([]);
   const [selectedSprint, setSelectedSprint] = useState('');
   const [availableSprints, setAvailableSprints] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const getPhaseName = (phaseId) => {
+    if (!phases) return '—';
+    const phase = phases.find(p => p.id === phaseId);
+    return phase ? phase.name : '—';
+  };
+
   async function fetchTasks() {
     try {
       const { data, error } = await supabase.from('tasks').select('*').eq('project_id', selectedProject.id);
       if (error) throw error;
-      const allTasks = data || [];
+      const allTasks = (data || []).map(t => ({
+        ...t,
+        assignees: t.assignees && t.assignees.length > 0
+          ? t.assignees
+          : (t.owner ? [t.owner] : [])
+      }));
       setTasks(allTasks);
       const sprints = [...new Set(allTasks.map(t => t.sprint).filter(Boolean))];
       setAvailableSprints(sprints);
@@ -82,7 +93,7 @@ const SprintView = ({ selectedProject }) => {
                   <td style={{ color: '#8e8e93' }}>{index + 1}</td>
                   <td style={{ fontWeight: 500 }}>{task.task_name || '—'}</td>
                   <td>{task.assignees ? task.assignees.join(', ') : '—'}</td>
-                  <td>{task.phase}</td>
+                  <td>{task.phase || getPhaseName(task.phase_id)}</td>
                   <td style={{ textAlign: 'center' }}><span className="badge-count">{task.story_points}</span></td>
                   <td><span className={`ios-badge priority-${(task.priority || 'Medium').toLowerCase()}`}>{task.priority}</span></td>
                   <td><span className={`ios-badge status-${(task.status || 'To Do').toLowerCase().replace(' ', '-')}`}>{task.status}</span></td>
