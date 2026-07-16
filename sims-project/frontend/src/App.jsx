@@ -250,6 +250,10 @@ function AppContent() {
           </div>
           <div className={`navbar-new-nav ${isMobileMenuOpen ? 'open' : ''}`}>
             <div className="navbar-nav-links">
+              <Link to="/projects" onClick={() => setIsMobileMenuOpen(false)} className={`navbar-nav-link ${currentPage === 'Projects' ? 'active' : ''}`}>
+                <span className="nav-icon">▣</span>
+                Projects
+              </Link>
               <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className={`navbar-nav-link ${currentPage === 'Dashboard' ? 'active' : ''}`}>
                 <span className="nav-icon">◇</span>
                 Dashboard
@@ -265,10 +269,6 @@ function AppContent() {
               <Link to="/sprint-tracker" onClick={() => setIsMobileMenuOpen(false)} className={`navbar-nav-link ${currentPage === 'Sprint Tracker' ? 'active' : ''}`}>
                 <span className="nav-icon">▶</span>
                 Sprint Tracker
-              </Link>
-              <Link to="/projects" onClick={() => setIsMobileMenuOpen(false)} className={`navbar-nav-link ${currentPage === 'Projects' ? 'active' : ''}`}>
-                <span className="nav-icon">▣</span>
-                Projects
               </Link>
             </div>
           </div>

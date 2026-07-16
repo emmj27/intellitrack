@@ -117,6 +117,12 @@
   font-weight: 600;
   color: #8e8e93;
   text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ios-table-input::placeholder,
+.ios-table-textarea::placeholder {
+  white-space: nowrap;
 }
 
 .sprint-tracker-view .ios-table td {

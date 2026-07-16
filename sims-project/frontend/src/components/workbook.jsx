@@ -270,6 +270,10 @@ function Workbook({ tasks, selectedProject, phases, fetchTasks, fetchPhases }) {
   };
 
   const resetForm = (isNew = false) => {
+    if (isNew && (!phases || phases.length === 0)) {
+      showAlert("Please add at least one phase before adding a task.");
+      return;
+    }
     if (isNew) setViewMode('table');
     const newPhaseId = lastPhaseId || (phases && phases.length > 0 ? phases[0].id : null);
     setFormData({
