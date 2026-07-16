@@ -1385,36 +1385,42 @@
   margin-top: 1.5rem;
 }
 
+.btn-cancel, .btn-save {
+  white-space: nowrap;
+  min-width: fit-content;
+  overflow: visible;
+  flex: 1;
+  padding: 12px 24px;
+  border-radius: 0px !important;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .btn-cancel {
   background: #f2f2f7;
-  color: #007aff;
-  border: none;
-  padding: 0.625rem 1.25rem;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  color: #3a3a3c;
 }
 
 .btn-cancel:hover {
   background: #e5e5ea;
+  transform: translateY(-1px);
 }
 
 .btn-save {
-  background: #007aff;
-  color: white;
-  border: none;
-  padding: 0.625rem 1.25rem;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  background: linear-gradient(135deg, #007aff, #005fc9);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.25);
 }
 
-.btn-save:hover {
-  background: #005fc9;
+.btn-save:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.35);
 }
 
 /* ========== DATE ERROR STYLES ========== */

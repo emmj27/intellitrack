@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { useModal } from './ModalProvider';
+import * as db from '../services/database';
 import './SprintTracker.css';
 
 const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
@@ -55,7 +56,7 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
   async function fetchData() {
     try {
       setLoading(true);
-      const { data: devData } = await supabase.from('developers').select('*');
+      const devData = await db.fetchDevelopers();
       if (devData) setDevelopers(devData.map(dev => dev.name));
 
       const { data: sprintData } = await supabase.from('sprints').select('*').eq('project_id', selectedProject.id).order('created_at', { ascending: true });
@@ -198,6 +199,10 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
   };
 
   const addNewTaskRow = () => {
+    if (!phases || phases.length === 0) {
+      showAlert("Please add at least one phase before adding a task.");
+      return;
+    }
     const tempId = `temp_${Date.now()}`;
     const newTaskData = { 
       id: tempId, isNew: true, sprint: sprints.length > 0 ? sprints[0].name : '', taskName: '', assignees: [], 
@@ -395,7 +400,7 @@ const SprintMaster = ({ selectedProject, phases, fetchPhases }) => {
         <table className="ios-table tracker-table">
           <thead>
             <tr>
-              <th style={{ width: '40px', textAlign: 'center' }}>#</th><th style={{ width: '220px' }}>Sprint</th><th>Task Name</th><th style={{ width: '200px' }}>Assignee(s)</th><th style={{ width: '150px' }}>Phase</th><th style={{ width: '90px', textAlign: 'center', paddingRight: '20px' }}>Points</th><th style={{ width: '110px', textAlign: 'center' }}>Priority</th><th style={{ width: '120px', textAlign: 'center' }}>Status</th><th>Notes</th><th style={{ width: '180px', minWidth: '180px', textAlign: 'center' }}>Actions</th>
+              <th style={{ width: '40px', textAlign: 'center' }}>#</th><th style={{ width: '220px' }}>Sprint</th><th>Task Name</th><th style={{ width: '200px' }}>Assignee(s)</th><th style={{ minWidth: '150px' }}>Phase</th><th style={{ width: '90px', textAlign: 'center', paddingRight: '20px' }}>Points</th><th style={{ width: '110px', textAlign: 'center' }}>Priority</th><th style={{ width: '120px', textAlign: 'center' }}>Status</th><th>Notes</th><th style={{ width: '180px', minWidth: '180px', textAlign: 'center' }}>Actions</th>
             </tr>
           </thead>
           <tbody>

@@ -154,7 +154,7 @@ function UserSettings({ onClose }) {
                   tabIndex="-1"
                   title={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  {showPassword ? <EyeIcon /> : <EyeOffIcon />}
                 </button>
               </div>
               
@@ -200,7 +200,7 @@ function UserSettings({ onClose }) {
                   tabIndex="-1"
                   title={showConfirmPassword ? "Hide password" : "Show password"}
                 >
-                  {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  {showConfirmPassword ? <EyeIcon /> : <EyeOffIcon />}
                 </button>
               </div>
             </div>
